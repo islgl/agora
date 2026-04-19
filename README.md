@@ -1,7 +1,65 @@
-# Tauri + React + Typescript
+# Agora
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+A desktop AI chat client with first-class agent tooling — built with Tauri, React, and Rust.
 
-## Recommended IDE Setup
+[![Version](https://img.shields.io/github/v/release/islgl/agora?include_prereleases&label=version&color=blue)](https://github.com/islgl/agora/releases)
+[![License](https://img.shields.io/github/license/islgl/agora?color=green)](./LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS-000?logo=apple&logoColor=white)](https://github.com/islgl/agora/releases)
+[![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Rust](https://img.shields.io/badge/Rust-stable-DEA584?logo=rust&logoColor=white)](https://www.rust-lang.org)
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+Agora pairs a clean chat UI with a real agent runtime: MCP servers, skills, built-in FS/Bash/Grep tools, approval prompts, todos, hooks, and conversation branching — all stored locally under `~/.agora/`.
+
+> ⚠️ **Alpha.** Only a macOS build is published today. Binaries are unsigned — Gatekeeper will prompt on first launch.
+
+## Highlights
+
+- **Multi-provider chat** — Anthropic, OpenAI, Google via the Vercel AI SDK. Per-model config with live test.
+- **Agent tooling** — nine first-party Rust tools (read/write/glob/grep/bash/…) scoped to a workspace root, plus MCP and Skills.
+- **Approvals & modes** — read-only auto-approve, per-tool allow rules, plan mode.
+- **Conversation branching** — switch active leaves, explore alternatives without losing history.
+- **Todos & hooks** — the agent can plan with structured todos and you can run shell hooks on lifecycle events.
+- **Export & share** — Markdown, PDF, and a one-click share link for any conversation.
+- **Everything local** — SQLite + files under `~/.agora/`, trivial to back up or clear.
+
+## Install
+
+Grab the latest `.dmg` from [Releases](https://github.com/islgl/agora/releases) and drag `Agora.app` into `/Applications`.
+
+First launch on macOS: right-click the app → **Open** (Gatekeeper warning is expected for unsigned alphas).
+
+## Development
+
+Prerequisites: [Node ≥ 20](https://nodejs.org), [pnpm](https://pnpm.io), [Rust stable](https://rustup.rs), and the [Tauri system deps](https://tauri.app/start/prerequisites/).
+
+```bash
+pnpm install
+pnpm tauri dev       # run the desktop app in dev mode
+pnpm tauri build     # produce a release bundle under src-tauri/target/release/bundle/
+```
+
+Data layout:
+
+```
+~/.agora/
+├── agora.db          # SQLite: conversations, messages, settings
+├── skills/           # Skill packs
+└── workspace/        # Default workspace root for FS/Bash tools
+```
+
+## Documentation
+
+Design notes and internal docs live under [`docs/`](./docs):
+
+- [`DESIGN.md`](./docs/DESIGN.md) — visual system & product direction
+- [`TOOLS.md`](./docs/TOOLS.md) — the nine built-in tools
+- [`AGENT_ROADMAP.md`](./docs/AGENT_ROADMAP.md) — where the agent story is headed
+- [`TODO.md`](./docs/TODO.md) — candidate features
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for release history.
+
+## License
+
+[MIT](./LICENSE) © islgl
