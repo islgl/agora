@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **App icon matches Apple's macOS template** — all bundle icons (`icon.icns`, `icon.ico`, and the `*.png` ladder under `src-tauri/icons/`) are now squircle-masked with 824-px content on a 1024-px canvas, R=185 corners, and transparent padding around the tile. Previously the Dock and `.dmg` showed the raw square master, which clashed with every other app's rounded-corner shape. The raw master is preserved at `assets/icon-source.png`; `scripts/build_macos_icons.py` (runnable via `uv run`) regenerates the full bundle from it and is idempotent.
 - **Settings page scaffolding** — new `SettingsPage` / `SettingsSection` primitives replace ad-hoc `SectionDivider` layouts across General / Capabilities / Hooks / Permissions / Providers / MCP / Models / Skills forms. Uniform title + description + body spacing; no more drift between tabs.
 - **`cancel()` unblocks the ask_user gate** — stopping a stream while a clarification prompt is up now resolves every in-flight `ask_user` promise with a `[cancelled]` sentinel and clears the visible prompt, so the next turn doesn't inherit an orphaned gate.
 
