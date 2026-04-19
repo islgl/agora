@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Webhook } from 'lucide-react';
-import { Label } from '@/components/ui/label';
 import { useSettingsStore } from '@/store/settingsStore';
-import { SectionDivider } from './SectionDivider';
+import { SettingsPage } from './SettingsPage';
+import { SettingsSection } from './SettingsSection';
 
 const EXAMPLE = `{
   "preToolUse": [
@@ -69,30 +68,14 @@ export function HooksForm() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Webhook className="size-4 text-primary" />
-          <h2
-            className="text-base text-foreground"
-            style={{ fontFamily: 'Georgia, serif', fontWeight: 500 }}
-          >
-            Tool-use hooks
-          </h2>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Run shell commands around every tool call. Supported events:{' '}
-          <code>preToolUse</code> (before the call; <code>block</code> fail
-          mode cancels the call), <code>postToolUse</code> (after; fail modes
-          only warn). Matcher is an exact tool name or <code>*</code> for
-          any. Each command gets <code>HOOK_EVENT</code>,{' '}
-          <code>TOOL_NAME</code>, <code>TOOL_INPUT</code> and (post-only)
-          <code>TOOL_OUTPUT</code> as env vars. 15-second per-hook timeout.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label className="text-sm text-muted-foreground">Config (JSON)</Label>
+    <SettingsPage
+      title="Hooks"
+      description="Shell commands that run around every tool call. preToolUse fires before — block-mode cancels the call. postToolUse fires after — outcomes only warn. Each command gets HOOK_EVENT, TOOL_NAME, TOOL_INPUT and (post-only) TOOL_OUTPUT as env vars. 15-second per-hook timeout."
+    >
+      <SettingsSection
+        title="Config (JSON)"
+        description={`Matcher is an exact tool name or * for any. Leave empty or {} to disable all hooks.`}
+      >
         <textarea
           value={text}
           onChange={(e) => handleChange(e.target.value)}
@@ -102,30 +85,26 @@ export function HooksForm() {
                      bg-card text-foreground focus:outline-none focus:ring-0"
           style={{ boxShadow: '0 0 0 1px var(--border)' }}
         />
-        {error ? (
+        {error && (
           <p className="text-[11px] text-destructive font-mono">{error}</p>
-        ) : (
-          <p className="text-[11px] text-muted-foreground">
-            Leave empty or <code>{'{}'}</code> to disable all hooks.
-          </p>
         )}
-      </div>
+      </SettingsSection>
 
-      <SectionDivider />
+      <SettingsSection title="Example">
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer text-foreground">
+            Show example config
+          </summary>
+          <pre
+            className="mt-2 p-3 rounded-xl bg-card font-mono whitespace-pre-wrap"
+            style={{ boxShadow: '0 0 0 1px var(--border)' }}
+          >
+            {EXAMPLE}
+          </pre>
+        </details>
+      </SettingsSection>
 
-      <details className="text-xs text-muted-foreground">
-        <summary className="cursor-pointer text-foreground">
-          Example config
-        </summary>
-        <pre
-          className="mt-2 p-3 rounded-xl bg-card font-mono whitespace-pre-wrap"
-          style={{ boxShadow: '0 0 0 1px var(--border)' }}
-        >
-          {EXAMPLE}
-        </pre>
-      </details>
-
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-1">
         <button
           type="button"
           onClick={handleSave}
@@ -138,6 +117,6 @@ export function HooksForm() {
           {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
-    </div>
+    </SettingsPage>
   );
 }

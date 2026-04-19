@@ -27,6 +27,7 @@ Agora pairs a clean chat UI with a real agent runtime: MCP servers, skills, buil
 
 - **Multi-provider chat** — Anthropic, OpenAI, Google via the Vercel AI SDK. Per-model config with live test.
 - **Agent tooling** — nine first-party Rust tools (read/write/glob/grep/bash/…) scoped to a workspace root, plus MCP and Skills.
+- **Personal assistant layers** — `config/` Brand (SOUL/USER/TOOLS/MEMORY/AGENTS), `wiki/` LLM-Wiki pages auto-generated from drops in `raw/`, HNSW vector memory with nightly Dreaming distillation.
 - **Approvals & modes** — read-only auto-approve, per-tool allow rules, plan mode.
 - **Conversation branching** — switch active leaves, explore alternatives without losing history.
 - **Todos & hooks** — the agent can plan with structured todos and you can run shell hooks on lifecycle events.
@@ -61,7 +62,12 @@ Data layout:
 
 ```
 ~/.agora/
-├── agora.db          # SQLite: conversations, messages, settings
+├── agora.db          # SQLite: conversations, messages, settings, memory_auto
+├── config/           # Brand Layer (SOUL/USER/TOOLS/MEMORY/AGENTS.md)
+├── wiki/             # LLM-Wiki pages, auto-maintained
+├── raw/              # Drop files here for auto-ingest into wiki/
+├── logs/             # Per-day conversation log (Dreaming input)
+├── dreams/           # Candidate memories awaiting user review
 ├── skills/           # Skill packs
 └── workspace/        # Default workspace root for FS/Bash tools
 ```

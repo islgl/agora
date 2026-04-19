@@ -16,11 +16,12 @@ export interface ActiveStream {
   assistantMessageId: string;
 }
 
-/** A user message typed while a stream was in flight, stashed for later.
- *  Drains by explicit click on a QueuedChip (see `QueuedChips`) — not
- *  auto-sent, because "assistant finished its turn" doesn't tell us
- *  whether the queued text still makes sense (the assistant might have
- *  ended with an inline clarification question). */
+/** A user message typed while a stream was in flight. Drains three ways:
+ *  (1) mid-stream auto-inject into a tool_result as a `<user-interrupt>`
+ *  block (see `injectInterrupts`); (2) auto-dispatched as a new turn
+ *  once the current stream finalizes (see ChatArea's stream-end
+ *  effect); (3) user clicks ➤ to stop the current stream and dispatch
+ *  immediately, or ✕ to discard. */
 export interface QueuedMessage {
   id: string;
   content: string;
@@ -108,6 +109,14 @@ interface ChatState {
     messageId: string,
     stepId: string
   ) => void;
+  /** Splice a `user_interrupt` part into a streaming assistant message so
+   *  scroll-back still shows what the user said mid-turn. Dedupes on
+   *  (text, at) to make the operation idempotent. */
+  appendInterruptPart: (
+    conversationId: string,
+    messageId: string,
+    part: Extract<MessagePart, { type: 'user_interrupt' }>
+  ) => void;
   persistMessage: (msg: Message) => Promise<void>;
   switchBranch: (conversationId: string, messageId: string) => Promise<void>;
   setActiveLeaf: (conversationId: string, messageId: string) => Promise<void>;
@@ -120,6 +129,12 @@ interface ChatState {
   cancelQueuedMessage: (conversationId: string, id: string) => void;
   /** Drop the entire queue for a conversation (used on conversation delete). */
   clearQueue: (conversationId: string) => void;
+  /** Drain text-only queued messages into a list for the interrupt-injection
+   *  path (see `executeToolCall`). Messages with file attachments stay put —
+   *  they can't ride a text-only `tool_result` and need explicit ➤ dispatch.
+   *  Removes the drained entries from the queue atomically so repeated calls
+   *  don't re-inject. */
+  consumeQueueAsInterrupts: (conversationId: string) => QueuedMessage[];
 
   // Todo actions (Phase B · model-managed plan)
   /** Hydrate todos for a conversation from SQLite. Skips the IPC if already
@@ -205,6 +220,28 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       delete next[conversationId];
       return { pendingQueue: next };
     });
+  },
+
+  consumeQueueAsInterrupts: (conversationId) => {
+    let drained: QueuedMessage[] = [];
+    set((state) => {
+      const existing = state.pendingQueue[conversationId];
+      if (!existing || existing.length === 0) return state;
+      // Partition: text-only messages drain; attachment-bearing ones stay.
+      const keep: QueuedMessage[] = [];
+      const take: QueuedMessage[] = [];
+      for (const m of existing) {
+        if (m.files.length > 0) keep.push(m);
+        else take.push(m);
+      }
+      if (take.length === 0) return state;
+      drained = take;
+      const next = { ...state.pendingQueue };
+      if (keep.length > 0) next[conversationId] = keep;
+      else delete next[conversationId];
+      return { pendingQueue: next };
+    });
+    return drained;
   },
 
   loadConversations: async () => {
@@ -531,6 +568,36 @@ export const useChatStore = create<ChatState>()((set, get) => ({
               return m;
             }
             parts.push({ type: 'step_start', id: stepId });
+            return { ...m, parts };
+          }),
+        },
+      };
+    });
+  },
+
+  appendInterruptPart: (conversationId, messageId, part) => {
+    set((state) => {
+      const msgs = state.messages[conversationId] ?? [];
+      return {
+        messages: {
+          ...state.messages,
+          [conversationId]: msgs.map((m) => {
+            if (m.id !== messageId) return m;
+            const parts = m.parts ? [...m.parts] : [];
+            // Dedupe on (text, at) — the queue drain shouldn't emit
+            // duplicates, but React StrictMode double-renders can cause
+            // tool-execute callbacks to run twice during dev.
+            if (
+              parts.some(
+                (p) =>
+                  p.type === 'user_interrupt' &&
+                  p.text === part.text &&
+                  p.at === part.at,
+              )
+            ) {
+              return m;
+            }
+            parts.push(part);
             return { ...m, parts };
           }),
         },

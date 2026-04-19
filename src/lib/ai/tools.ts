@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
+import { openPath } from '@tauri-apps/plugin-opener';
 import { jsonSchema, tool, type ToolSet } from 'ai';
+import { toast } from 'sonner';
 import type {
   ConversationMode,
   PermissionCheckResult,
@@ -13,6 +15,7 @@ import {
 import { usePermissionsStore } from '@/store/permissionsStore';
 import { useChatStore } from '@/store/chatStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useBrandStore } from '@/store/brandStore';
 import {
   spawnSubagent,
   snapshotSubagent,
@@ -89,6 +92,32 @@ const SUBAGENT_BLOCKLIST = new Set([
   'enter_plan_mode',
   'exit_plan_mode',
   'ask_user',
+  // Regular subagents get read-only wiki access; write / rebuild /
+  // delete belong to the main agent and the dedicated wiki-ingest
+  // subagent (loaded via loadWikiIngestTools).
+  'write_wiki_page',
+  'update_wiki_index',
+  'delete_wiki_page',
+  // Only the main agent opens folders for the user or inspects the raw
+  // inbox — subagents are isolated investigators, not UX helpers.
+  'open_agora_folder',
+  'list_raw_files',
+  // Auto-memory curation is the user's conversation with the main
+  // agent — subagents don't get to look at or touch it.
+  'list_auto_memories',
+  'delete_auto_memory',
+  // Dreaming is a main-conversation workflow. Subagents don't run
+  // dreaming or curate its output.
+  'run_dreaming',
+  'list_dreams',
+  'read_dream',
+  'discard_dream',
+  // Brand Layer writes are user-identity edits — subagents never touch
+  // them. Reads stay available so an investigation can reference the
+  // user's preferences without triggering a write path.
+  'append_brand_file',
+  'replace_brand_file',
+  'delete_brand_line',
 ]);
 
 function isGatedTool(name: string): boolean {
@@ -138,6 +167,51 @@ export async function loadFrontendTools(
   }
   set['todo_write'] = todoWriteTool();
 
+  // Brand Layer · the five Markdown files that shape the agent's
+  // identity. Reads auto-approve; writes go through the same approval
+  // gate as built-in write_file but under distinct tool names so the
+  // user can manage allow/deny rules separately in Settings →
+  // Permissions.
+  set['list_brand_files'] = listBrandFilesTool();
+  set['read_brand_file'] = readBrandFileTool();
+  set['append_brand_file'] = appendBrandFileTool();
+  set['replace_brand_file'] = replaceBrandFileTool();
+  set['delete_brand_line'] = deleteBrandLineTool();
+
+  // Wiki Layer · the main agent gets full CRUD so the user can
+  // maintain knowledge pages through conversation ("summarize this
+  // article into a wiki page", "delete that stale page on X"). Reads
+  // are also in subagents, but writes are blocked there via
+  // SUBAGENT_BLOCKLIST. No approval gate — same reasoning as the Brand
+  // Layer: reversible, ergonomics > friction, the real defenses are
+  // filename whitelist + frontmatter-validated content.
+  set['list_wiki_pages'] = listWikiPagesTool();
+  set['read_wiki_page'] = readWikiPageTool();
+  set['write_wiki_page'] = writeWikiPageTool();
+  set['update_wiki_index'] = updateWikiIndexTool();
+  set['delete_wiki_page'] = deleteWikiPageTool();
+
+  // Raw Layer · the user-facing tab was removed — users drop files into
+  // ~/.agora/raw/ from Finder, the watcher auto-generates a Wiki page.
+  // The agent still needs a way to answer "what's in my raw folder?"
+  // and to open filesystem folders for the user.
+  set['list_raw_files'] = listRawFilesTool();
+  set['open_agora_folder'] = openAgoraFolderTool();
+
+  // Auto Memory · the vector store the post-turn extractor populates.
+  // The Settings UI for browsing / deleting these entries was removed;
+  // the main agent now handles those workflows conversationally.
+  set['list_auto_memories'] = listAutoMemoriesTool();
+  set['delete_auto_memory'] = deleteAutoMemoryTool();
+
+  // Dreaming · run the nightly distillation, list past runs, read
+  // candidates, archive. Accepting a candidate goes through the
+  // existing append_brand_file tool (no dedicated accept command).
+  set['run_dreaming'] = runDreamingTool();
+  set['list_dreams'] = listDreamsTool();
+  set['read_dream'] = readDreamTool();
+  set['discard_dream'] = discardDreamTool();
+
   // Mode-transition tools are runtime-gated too: we expose both
   // regardless of starting mode so a mid-turn switch can still see the
   // other direction if needed, but executing them in the wrong mode
@@ -173,7 +247,8 @@ export async function loadSubagentTools(): Promise<ToolSet> {
     set[spec.name] = tool({
       description: spec.description,
       inputSchema: jsonSchema(sanitizeSchema(spec.inputSchema)),
-      execute: (input: unknown) => executeToolCall(spec.name, input),
+      execute: (input: unknown) =>
+        executeToolCall(spec.name, input, { forSubagent: true }),
     });
   }
   return set;
@@ -305,6 +380,829 @@ function summarizeTodos(todos: Todo[]): string {
   if (counts.pending) parts.push(`${counts.pending} pending`);
   if (counts.blocked) parts.push(`${counts.blocked} blocked`);
   return parts.join(', ') || 'empty';
+}
+
+/**
+ * Brand Layer synth tools.
+ *
+ * Five Markdown files under `~/.agora/config/` shape the agent's identity:
+ * SOUL, USER, TOOLS, MEMORY (user-editable), and AGENTS (system-owned,
+ * read-only). The user maintains these entirely through chat — there is
+ * no Settings UI for them. That's deliberate: the agent is the natural
+ * editor for its own identity.
+ *
+ * Approval model — deliberately **not** gated:
+ *   - Reads (`list_brand_files`, `read_brand_file`) are trivially safe.
+ *   - Writes (`append_brand_file`, `replace_brand_file`,
+ *     `delete_brand_line`) run without an approval prompt. Gating every
+ *     "remember X" would kill the ergonomics, and the writes are
+ *     essentially reversible: a bad append becomes a `delete_brand_line`,
+ *     a bad replace becomes another replace. The real defenses sit
+ *     lower:
+ *       * Rust-layer secret denylist (`memory_active.rs`) refuses
+ *         writes that look like API keys, tokens, or hex-blob secrets.
+ *       * Filename whitelist — only the five known Brand filenames are
+ *         accepted; no path injection surface.
+ *       * AGENTS.md refuses every write at the Rust layer.
+ *       * Every write surfaces a toast so it is never silent.
+ */
+
+const BRAND_FILE_NAMES = ['SOUL.md', 'USER.md', 'TOOLS.md', 'MEMORY.md', 'AGENTS.md'] as const;
+const WRITABLE_BRAND_FILES = ['SOUL.md', 'USER.md', 'TOOLS.md', 'MEMORY.md'] as const;
+
+type BrandFileName = (typeof BRAND_FILE_NAMES)[number];
+type WritableBrandFile = (typeof WRITABLE_BRAND_FILES)[number];
+
+function listBrandFilesTool() {
+  return tool({
+    description:
+      "List the user's Brand Layer files and summarize each one (path, " +
+      'size, whether it has content, whether it is user-editable). These ' +
+      'five Markdown files shape the assistant\'s identity:\n' +
+      '- SOUL.md: personality / communication style (editable)\n' +
+      '- USER.md: who the user is — name, role, timezone (editable)\n' +
+      '- TOOLS.md: tech stack / tooling preferences (editable)\n' +
+      '- MEMORY.md: durable active memory (editable)\n' +
+      '- AGENTS.md: system safety rules (read-only)\n' +
+      'Call this first when the user asks to view or edit any of them.',
+    inputSchema: jsonSchema({ type: 'object', properties: {} }),
+    execute: async () => executeListBrandFiles(),
+  });
+}
+
+async function executeListBrandFiles(): Promise<string | { error: string }> {
+  try {
+    const payload = await invoke<import('@/types').BrandPayload>('read_brand');
+    const rows = BRAND_FILE_NAMES.map((name) => {
+      const section = readSection(payload, name);
+      return {
+        file: name,
+        path: section.path,
+        bytes: section.content.length,
+        empty: section.content.length === 0,
+        editable: name !== 'AGENTS.md',
+        truncated: section.truncated,
+      };
+    });
+    return JSON.stringify(
+      { configDir: payload.configDir, files: rows },
+      null,
+      2,
+    );
+  } catch (err) {
+    return { error: `list_brand_files failed: ${String(err)}` };
+  }
+}
+
+function readBrandFileTool() {
+  return tool({
+    description:
+      "Read one of the user's Brand Layer Markdown files. Use this " +
+      'whenever the user asks to see their current SOUL / USER / TOOLS / ' +
+      'MEMORY / AGENTS content, or before proposing an edit (so you can ' +
+      'diff mentally against what\'s already there). Returns the raw ' +
+      'Markdown verbatim.',
+    inputSchema: jsonSchema({
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          enum: [...BRAND_FILE_NAMES],
+          description: 'Which Brand file to read.',
+        },
+      },
+    }),
+    execute: async (input: unknown) => executeReadBrandFile(input),
+  });
+}
+
+async function executeReadBrandFile(
+  input: unknown,
+): Promise<string | { error: string }> {
+  const file = extractBrandFile(input);
+  if ('error' in file) return file;
+  try {
+    const section = await invoke<import('@/types').BrandSection>(
+      'read_brand_file',
+      { file: file.name },
+    );
+    if (!section.content) {
+      return `(${file.name} is empty)`;
+    }
+    const header = `# ${file.name}  (${section.path ?? 'unsaved'})`;
+    return `${header}\n\n${section.content}`;
+  } catch (err) {
+    return { error: `read_brand_file failed: ${String(err)}` };
+  }
+}
+
+function appendBrandFileTool() {
+  return tool({
+    description:
+      'Append a durable line to a writable Brand file (SOUL / USER / ' +
+      'TOOLS / MEMORY). Use this when the user asks you to remember ' +
+      'something, or when you have high confidence that a fact from the ' +
+      'current turn should persist across future conversations. Pick ' +
+      '`file`:\n' +
+      '- USER.md: identity, name, title, timezone, ways to address them\n' +
+      '- TOOLS.md: tech stack, tooling preferences, CLI/editor/env choices\n' +
+      '- SOUL.md: communication / tone preferences ("be more concise")\n' +
+      '- MEMORY.md: everything else worth long-term recall\n' +
+      'Write one compact line; exact duplicates are silently deduplicated. ' +
+      'Do NOT persist secrets (API keys, passwords, tokens) — the writer ' +
+      'refuses and returns a reason. AGENTS.md is not writable through ' +
+      'this tool.',
+    inputSchema: jsonSchema({
+      type: 'object',
+      required: ['file', 'content'],
+      properties: {
+        file: {
+          type: 'string',
+          enum: [...WRITABLE_BRAND_FILES],
+          description: 'Which writable Brand file to append to.',
+        },
+        content: {
+          type: 'string',
+          description:
+            'Single-line memory to persist. Keep it short, factual, agent-useful. ' +
+            'Prefer third-person phrasing ("User prefers X") over first-person.',
+        },
+        section: {
+          type: 'string',
+          description:
+            'Optional `## Heading` to group related entries under. ' +
+            'Re-using the same heading across calls lands subsequent entries in the same section.',
+        },
+      },
+    }),
+    execute: async (input: unknown) => executeAppendBrandFile(input),
+  });
+}
+
+async function executeAppendBrandFile(
+  input: unknown,
+): Promise<string | { error: string }> {
+  const parsed = extractWritableBrand(input);
+  if ('error' in parsed) return parsed;
+  const { name, rest } = parsed;
+  const content = typeof rest.content === 'string' ? rest.content.trim() : '';
+  const section =
+    typeof rest.section === 'string' && rest.section.trim()
+      ? rest.section.trim()
+      : undefined;
+  if (!content) {
+    return { error: 'append_brand_file: content is required and must be non-empty' };
+  }
+
+  try {
+    const result = await invoke<{
+      written: boolean;
+      file: string;
+      reason?: string | null;
+    }>('append_to_memory', { file: name, content, section });
+
+    if (!result.written) {
+      const why = result.reason ?? 'skipped';
+      toast.warning(`Not remembered: ${why}`);
+      return `Write skipped: ${why}`;
+    }
+
+    void useBrandStore.getState().refresh();
+    const display = content.length > 60 ? content.slice(0, 57) + '…' : content;
+    toast.success(`✓ Appended to ${name}: ${display}`);
+    return `Appended to ${name}: "${content}"${section ? ` (under "${section}")` : ''}.`;
+  } catch (err) {
+    return { error: `append_brand_file failed: ${String(err)}` };
+  }
+}
+
+function replaceBrandFileTool() {
+  return tool({
+    description:
+      'Overwrite a writable Brand file (SOUL / USER / TOOLS / MEMORY) ' +
+      'with fresh content. Use this for deliberate restructures — when ' +
+      'appending a bullet would not cut it, or the user asked you to ' +
+      'rewrite the whole file. Pass the COMPLETE new Markdown body; the ' +
+      'previous contents are discarded. ALWAYS read the current file ' +
+      'first (via `read_brand_file`) so you do not accidentally drop ' +
+      'existing content. AGENTS.md is read-only and cannot be overwritten.',
+    inputSchema: jsonSchema({
+      type: 'object',
+      required: ['file', 'content'],
+      properties: {
+        file: {
+          type: 'string',
+          enum: [...WRITABLE_BRAND_FILES],
+          description: 'Which writable Brand file to overwrite.',
+        },
+        content: {
+          type: 'string',
+          description:
+            'Full replacement Markdown body. Line endings are preserved as-is.',
+        },
+      },
+    }),
+    execute: async (input: unknown) => executeReplaceBrandFile(input),
+  });
+}
+
+async function executeReplaceBrandFile(
+  input: unknown,
+): Promise<string | { error: string }> {
+  const parsed = extractWritableBrand(input);
+  if ('error' in parsed) return parsed;
+  const { name, rest } = parsed;
+  if (typeof rest.content !== 'string') {
+    return { error: 'replace_brand_file: content is required (string)' };
+  }
+  const content = rest.content;
+
+  try {
+    await invoke('write_brand_file', { file: name, content });
+    void useBrandStore.getState().refresh();
+    toast.success(`✓ Replaced ${name} (${content.length} chars)`);
+    return `Replaced ${name} with ${content.length} characters.`;
+  } catch (err) {
+    return { error: `replace_brand_file failed: ${String(err)}` };
+  }
+}
+
+function deleteBrandLineTool() {
+  return tool({
+    description:
+      'Delete a single exact line from a writable Brand file (SOUL / ' +
+      'USER / TOOLS / MEMORY). Match is whitespace-trimmed but otherwise ' +
+      'exact — pass the line verbatim as it appears in the file. Returns ' +
+      'an error when the line is not found. AGENTS.md lines cannot be ' +
+      'removed this way.',
+    inputSchema: jsonSchema({
+      type: 'object',
+      required: ['file', 'line'],
+      properties: {
+        file: {
+          type: 'string',
+          enum: [...WRITABLE_BRAND_FILES],
+        },
+        line: {
+          type: 'string',
+          description:
+            'The exact line to remove, whitespace-trimmed (e.g. "- User prefers pnpm").',
+        },
+      },
+    }),
+    execute: async (input: unknown) => executeDeleteBrandLine(input),
+  });
+}
+
+async function executeDeleteBrandLine(
+  input: unknown,
+): Promise<string | { error: string }> {
+  const parsed = extractWritableBrand(input);
+  if ('error' in parsed) return parsed;
+  const { name, rest } = parsed;
+  const line = typeof rest.line === 'string' ? rest.line : '';
+  if (!line.trim()) {
+    return { error: 'delete_brand_line: `line` is required and must be non-empty' };
+  }
+
+  try {
+    const removed = await invoke<boolean>('delete_memory_line', { file: name, line });
+    if (!removed) {
+      return `No line matching "${line.slice(0, 80)}" found in ${name}.`;
+    }
+    void useBrandStore.getState().refresh();
+    toast.success(`✓ Removed a line from ${name}`);
+    return `Removed line from ${name}.`;
+  } catch (err) {
+    return { error: `delete_brand_line failed: ${String(err)}` };
+  }
+}
+
+function extractBrandFile(
+  input: unknown,
+): { name: BrandFileName } | { error: string } {
+  if (!input || typeof input !== 'object') {
+    return { error: 'expected { file: "SOUL.md"|"USER.md"|… }' };
+  }
+  const r = input as Record<string, unknown>;
+  const raw = typeof r.file === 'string' ? r.file.trim() : '';
+  // Tolerate both "MEMORY" and "MEMORY.md"; models are sometimes sloppy.
+  const normalized = raw.endsWith('.md') ? raw : `${raw}.md`;
+  if (!(BRAND_FILE_NAMES as readonly string[]).includes(normalized)) {
+    return {
+      error: `file must be one of ${BRAND_FILE_NAMES.join(', ')} (got "${raw}")`,
+    };
+  }
+  return { name: normalized as BrandFileName };
+}
+
+function extractWritableBrand(
+  input: unknown,
+): { name: WritableBrandFile; rest: Record<string, unknown> } | { error: string } {
+  const got = extractBrandFile(input);
+  if ('error' in got) return got;
+  if (!(WRITABLE_BRAND_FILES as readonly string[]).includes(got.name)) {
+    return {
+      error: `${got.name} is not writable — AGENTS.md is system-managed and read-only`,
+    };
+  }
+  return {
+    name: got.name as WritableBrandFile,
+    rest: input as Record<string, unknown>,
+  };
+}
+
+function readSection(
+  payload: import('@/types').BrandPayload,
+  name: BrandFileName,
+): import('@/types').BrandSection {
+  switch (name) {
+    case 'SOUL.md':
+      return payload.soul;
+    case 'USER.md':
+      return payload.user;
+    case 'TOOLS.md':
+      return payload.tools;
+    case 'MEMORY.md':
+      return payload.memory;
+    case 'AGENTS.md':
+      return payload.agents;
+  }
+}
+
+/**
+ * Wiki Layer — thin wrappers over Rust commands. Read-only variants are
+ * handed to every agent; write / index variants are only in the wiki-
+ * ingest subagent's toolset (see `loadWikiIngestTools`).
+ */
+function listWikiPagesTool() {
+  return tool({
+    description:
+      "List every Wiki page currently in ~/.agora/wiki/. Use this BEFORE " +
+      "writing a new Wiki entry so you can see whether an existing page " +
+      "can be extended instead of creating a duplicate. Returns title, " +
+      "tags, category, summary, and rel_path for each page.",
+    inputSchema: jsonSchema({ type: 'object', properties: {} }),
+    execute: async () => {
+      try {
+        const pages = await invoke<import('@/types').WikiPage[]>('list_wiki_pages');
+        if (pages.length === 0) return 'No wiki pages yet.';
+        return JSON.stringify(pages, null, 2);
+      } catch (err) {
+        return { error: `list_wiki_pages failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+function readWikiPageTool() {
+  return tool({
+    description:
+      "Read the full Markdown content (including frontmatter) of a Wiki " +
+      "page. `rel_path` comes from `list_wiki_pages` and uses forward " +
+      "slashes (e.g. `concepts/constitutional-ai.md`). Use this when you " +
+      "want to cite or extend an existing page.",
+    inputSchema: jsonSchema({
+      type: 'object',
+      required: ['rel_path'],
+      properties: {
+        rel_path: {
+          type: 'string',
+          description: 'Wiki page path relative to the wiki root.',
+        },
+      },
+    }),
+    execute: async (input: unknown) => {
+      const r = input as { rel_path?: string };
+      if (!r.rel_path) return { error: 'read_wiki_page: rel_path is required' };
+      try {
+        const page = await invoke<import('@/types').WikiPageContents>(
+          'read_wiki_page',
+          { relPath: r.rel_path },
+        );
+        return page.content;
+      } catch (err) {
+        return { error: `read_wiki_page failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+function writeWikiPageTool() {
+  return tool({
+    description:
+      "Create or overwrite a Wiki page. `rel_path` should use forward " +
+      "slashes and end in `.md`; pick a `{category}/{slug}.md` layout " +
+      "where category is one of `concepts`, `projects`, or `domains`. " +
+      "The content must include YAML frontmatter (title, tags, category, " +
+      "summary, updated_at, sources). Call `update_wiki_index` afterwards " +
+      "so the index reflects your new page.",
+    inputSchema: jsonSchema({
+      type: 'object',
+      required: ['rel_path', 'content'],
+      properties: {
+        rel_path: { type: 'string' },
+        content: { type: 'string' },
+      },
+    }),
+    execute: async (input: unknown) => {
+      const r = input as { rel_path?: string; content?: string };
+      if (!r.rel_path || typeof r.content !== 'string') {
+        return { error: 'write_wiki_page: rel_path and content required' };
+      }
+      try {
+        const page = await invoke<import('@/types').WikiPage>('write_wiki_page', {
+          relPath: r.rel_path,
+          content: r.content,
+        });
+        return `Wrote ${page.relPath} (title: ${page.title}).`;
+      } catch (err) {
+        return { error: `write_wiki_page failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+function updateWikiIndexTool() {
+  return tool({
+    description:
+      "Rebuild `wiki/index.md` after creating or modifying Wiki pages. " +
+      "Call once at the end of an ingest pass, not between every page. " +
+      "Returns the new index body as confirmation.",
+    inputSchema: jsonSchema({ type: 'object', properties: {} }),
+    execute: async () => {
+      try {
+        const body = await invoke<string>('update_wiki_index');
+        const preview = body.length > 400 ? body.slice(0, 400) + '…' : body;
+        return `Index rebuilt.\n\n${preview}`;
+      } catch (err) {
+        return { error: `update_wiki_index failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+function deleteWikiPageTool() {
+  return tool({
+    description:
+      "Delete a Wiki page by its `rel_path`. Use when the user explicitly " +
+      'asks to remove a page, or when a page has become redundant after a ' +
+      'merge. `rel_path` comes from `list_wiki_pages` (forward slashes, ' +
+      'e.g. `concepts/foo.md`). After deleting, consider calling ' +
+      '`update_wiki_index` so the index stops pointing at a missing file.',
+    inputSchema: jsonSchema({
+      type: 'object',
+      required: ['rel_path'],
+      properties: {
+        rel_path: {
+          type: 'string',
+          description: 'Wiki page path relative to the wiki root.',
+        },
+      },
+    }),
+    execute: async (input: unknown) => {
+      const r = input as { rel_path?: string };
+      if (!r.rel_path) return { error: 'delete_wiki_page: rel_path is required' };
+      try {
+        const removed = await invoke<boolean>('delete_wiki_page', {
+          relPath: r.rel_path,
+        });
+        return removed
+          ? `Deleted ${r.rel_path}. Run \`update_wiki_index\` to refresh the index.`
+          : `${r.rel_path} did not exist.`;
+      } catch (err) {
+        return { error: `delete_wiki_page failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+/**
+ * Raw inbox listing — replaces what the removed Raw Settings tab used
+ * to show. When the user asks "what's queued in my raw folder?" or "did
+ * my PDF get picked up?", the agent calls this to answer factually.
+ */
+function listRawFilesTool() {
+  return tool({
+    description:
+      "List every file currently sitting in ~/.agora/raw/. Returns " +
+      'path, size, last-modified time, and whether the format is ' +
+      'supported by the ingest pipeline (md, markdown, txt, pdf, html, ' +
+      'htm). Unsupported files are listed but will be skipped by the ' +
+      'watcher. Use this when the user asks what files they have ' +
+      'queued, or to diagnose why an ingest did not happen.',
+    inputSchema: jsonSchema({ type: 'object', properties: {} }),
+    execute: async () => {
+      try {
+        const files = await invoke<
+          Array<{
+            relPath: string;
+            absPath: string;
+            sizeBytes: number;
+            modifiedAt: number;
+            supported: boolean;
+          }>
+        >('list_raw_files');
+        if (files.length === 0) {
+          return 'Raw inbox is empty. Drop a Markdown / PDF / HTML / text file into ~/.agora/raw/ to trigger ingest.';
+        }
+        return JSON.stringify(files, null, 2);
+      } catch (err) {
+        return { error: `list_raw_files failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+/**
+ * Reveal one of the Agora subdirectories in the user's file manager.
+ * Agora stores everything under ~/.agora/; the agent can hand the user
+ * a Finder / Explorer window at the right spot without them having to
+ * remember the path.
+ */
+function openAgoraFolderTool() {
+  const allowed = ['', 'config', 'wiki', 'raw', 'logs', 'dreams', 'skills', 'workspace'];
+  return tool({
+    description:
+      'Open one of the Agora subdirectories in the user\'s file ' +
+      "manager (Finder / Explorer / Files). Use this when the user " +
+      "wants to inspect files on disk — e.g. to drop a document into " +
+      "`raw`, or view the generated pages in `wiki`. Pass `subdir` as " +
+      "one of: '' (the agora root), 'config', 'wiki', 'raw', 'logs', " +
+      "'dreams', 'skills', 'workspace'.",
+    inputSchema: jsonSchema({
+      type: 'object',
+      properties: {
+        subdir: {
+          type: 'string',
+          enum: allowed,
+          description:
+            "Which Agora subdirectory to open. Empty string opens the agora root.",
+        },
+      },
+    }),
+    execute: async (input: unknown) => {
+      const r = (input ?? {}) as { subdir?: string };
+      const subdir = typeof r.subdir === 'string' ? r.subdir.trim() : '';
+      if (!allowed.includes(subdir)) {
+        return {
+          error: `subdir must be one of ${JSON.stringify(allowed)}`,
+        };
+      }
+      try {
+        const path = await invoke<string>('resolve_agora_path', { subdir });
+        await openPath(path);
+        toast.success(`Opened ${path}`);
+        const label = subdir === '' ? 'agora root' : subdir;
+        return `Opened ${label} at ${path}.`;
+      } catch (err) {
+        return { error: `open_agora_folder failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+/* ─── Auto Memory curation (user-conversation tools) ──────── */
+
+interface AutoMemoryRow {
+  id: string;
+  text: string;
+  kind: string;
+  sourceConversationId?: string | null;
+  sourceMessageId?: string | null;
+  createdAt: number;
+}
+
+function listAutoMemoriesTool() {
+  return tool({
+    description:
+      "List the user's automatically-extracted memories (the post-turn " +
+      'extractor writes to this store — facts, preferences, events the ' +
+      'model picked out from past conversations). Use when the user asks ' +
+      'what you "remember automatically" or wants to audit / clean up the ' +
+      'store. For their explicit memories (the ones they asked you to ' +
+      'save), call `read_brand_file` with "MEMORY.md" instead.',
+    inputSchema: jsonSchema({
+      type: 'object',
+      properties: {
+        limit: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 500,
+          default: 50,
+          description: 'Max rows to return (most-recent first).',
+        },
+      },
+    }),
+    execute: async (input: unknown) => {
+      const r = (input ?? {}) as { limit?: number };
+      const limit = typeof r.limit === 'number' && r.limit > 0 ? r.limit : 50;
+      try {
+        const rows = await invoke<AutoMemoryRow[]>('list_auto_memory', { limit });
+        if (rows.length === 0) return 'No auto-extracted memories yet.';
+        return JSON.stringify(rows, null, 2);
+      } catch (err) {
+        return { error: `list_auto_memories failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+function deleteAutoMemoryTool() {
+  return tool({
+    description:
+      'Delete a single auto-extracted memory by id. Ids come from ' +
+      '`list_auto_memories`. Use when the user asks to forget something ' +
+      'specific ("that wrong note about pnpm", "the entry from 2026-04-20"). ' +
+      'The vector is gone afterwards; if the user regrets it, they can ' +
+      're-teach by mentioning the fact again.',
+    inputSchema: jsonSchema({
+      type: 'object',
+      required: ['id'],
+      properties: {
+        id: {
+          type: 'string',
+          description: 'The auto-memory id from list_auto_memories.',
+        },
+      },
+    }),
+    execute: async (input: unknown) => {
+      const r = (input ?? {}) as { id?: string };
+      if (!r.id) return { error: 'delete_auto_memory: id is required' };
+      try {
+        const removed = await invoke<boolean>('delete_auto_memory', { id: r.id });
+        if (removed) {
+          toast.success('✓ Forgot that auto memory');
+          return `Deleted auto memory ${r.id}.`;
+        }
+        return `No auto memory with id ${r.id}.`;
+      } catch (err) {
+        return { error: `delete_auto_memory failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+/* ─── Dreaming (user-conversation tools) ──────────────────── */
+
+interface DreamCandidate {
+  target: 'USER' | 'TOOLS' | 'SOUL' | 'MEMORY';
+  content: string;
+  justification?: string;
+}
+
+interface DreamFile {
+  date: string;
+  candidates: DreamCandidate[];
+  trimmedMemoryMd?: string;
+  generatedAt: number;
+}
+
+function runDreamingTool() {
+  return tool({
+    description:
+      "Trigger a Dreaming pass — read a day's conversation log, ask the " +
+      'model to distill candidate long-term memories, save the proposal ' +
+      'to ~/.agora/dreams/. Defaults to yesterday (UTC). After this ' +
+      'returns, present the candidates to the user one by one and let ' +
+      'them choose which to save (via `append_brand_file`). When done, ' +
+      'call `discard_dream` to archive the dream file.',
+    inputSchema: jsonSchema({
+      type: 'object',
+      properties: {
+        date: {
+          type: 'string',
+          description:
+            'Target date in YYYY-MM-DD. Omit for yesterday. Useful when a past day had a rich conversation worth revisiting.',
+        },
+      },
+    }),
+    execute: async (input: unknown) => {
+      const r = (input ?? {}) as { date?: string };
+      try {
+        const { runDreaming } = await import('@/lib/ai/dreaming');
+        const dream = await runDreaming(r.date?.trim() || undefined);
+        if (!dream) {
+          return `No conversation log for ${r.date ?? 'yesterday'} — nothing to distill.`;
+        }
+        return JSON.stringify(dream, null, 2);
+      } catch (err) {
+        return { error: `run_dreaming failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+function listDreamsTool() {
+  return tool({
+    description:
+      'List every dream file on disk (dates for which Dreaming has been ' +
+      'run). Most-recent first. Use when the user asks what dreams are ' +
+      'pending, or to find a specific date to review.',
+    inputSchema: jsonSchema({ type: 'object', properties: {} }),
+    execute: async () => {
+      try {
+        const dates = await invoke<string[]>('list_dream_dates');
+        if (dates.length === 0) return 'No dreams on disk.';
+        return JSON.stringify(dates, null, 2);
+      } catch (err) {
+        return { error: `list_dreams failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+function readDreamTool() {
+  return tool({
+    description:
+      "Read a specific day's dream file — the candidate memories + " +
+      'optional MEMORY.md trim proposal. Returns null if no dream exists ' +
+      'for that date. Follow up by helping the user decide which ' +
+      'candidates to save (`append_brand_file`) and then archive the ' +
+      'dream (`discard_dream`).',
+    inputSchema: jsonSchema({
+      type: 'object',
+      required: ['date'],
+      properties: {
+        date: { type: 'string', description: 'YYYY-MM-DD' },
+      },
+    }),
+    execute: async (input: unknown) => {
+      const r = (input ?? {}) as { date?: string };
+      if (!r.date) return { error: 'read_dream: date is required' };
+      try {
+        const dream = await invoke<DreamFile | null>('read_dream', {
+          date: r.date,
+        });
+        if (!dream) return `No dream file for ${r.date}.`;
+        return JSON.stringify(dream, null, 2);
+      } catch (err) {
+        return { error: `read_dream failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+function discardDreamTool() {
+  return tool({
+    description:
+      'Archive a dream file (moves it to dreams/discarded/). Use this ' +
+      'after the user has reviewed the candidates — whether they saved ' +
+      'some or all of them, or decided to skip the whole batch. Keeps ' +
+      'the live dreams list clean.',
+    inputSchema: jsonSchema({
+      type: 'object',
+      required: ['date'],
+      properties: {
+        date: { type: 'string', description: 'YYYY-MM-DD' },
+      },
+    }),
+    execute: async (input: unknown) => {
+      const r = (input ?? {}) as { date?: string };
+      if (!r.date) return { error: 'discard_dream: date is required' };
+      try {
+        const ok = await invoke<boolean>('discard_dream', { date: r.date });
+        return ok
+          ? `Archived dream ${r.date} to dreams/discarded/.`
+          : `No dream file at ${r.date}.`;
+      } catch (err) {
+        return { error: `discard_dream failed: ${String(err)}` };
+      }
+    },
+  });
+}
+
+/**
+ * Toolset handed to the wiki-ingest subagent (Phase 4). Deliberately
+ * narrow: just enough to read a raw file, understand existing pages,
+ * and write its output. The subagent has no shell, no parent-memory,
+ * no further task delegation.
+ */
+export async function loadWikiIngestTools(): Promise<ToolSet> {
+  let specs: ToolSpecDto[] = [];
+  try {
+    specs = await invoke<ToolSpecDto[]>('list_frontend_tools');
+  } catch (err) {
+    console.warn('list_frontend_tools failed for wiki ingest', err);
+    return {};
+  }
+  const allow = new Set(['read_file', 'glob', 'grep']);
+  const set: ToolSet = {};
+  for (const spec of specs) {
+    if (!allow.has(spec.name)) continue;
+    set[spec.name] = tool({
+      description: spec.description,
+      inputSchema: jsonSchema(sanitizeSchema(spec.inputSchema)),
+      execute: (input: unknown) =>
+        executeToolCall(spec.name, input, { forSubagent: true }),
+    });
+  }
+  set['list_wiki_pages'] = listWikiPagesTool();
+  set['read_wiki_page'] = readWikiPageTool();
+  set['write_wiki_page'] = writeWikiPageTool();
+  set['update_wiki_index'] = updateWikiIndexTool();
+  return set;
 }
 
 /**
@@ -863,9 +1761,19 @@ function tryStringify(v: unknown): string {
  * actual Rust invocation. Returns a shaped error object on denial so the
  * AI SDK surfaces it as `tool-error` without aborting the step.
  */
+interface ExecuteToolCallOptions {
+  /** When true, skip the user-interrupt injection path. Set by subagent
+   *  toolsets so a mid-turn user message in the main conversation
+   *  doesn't leak into a subagent's tool_result (the subagent has no
+   *  business reacting to parent-UI chatter, and spending its step
+   *  budget on it would starve the original task). */
+  forSubagent?: boolean;
+}
+
 async function executeToolCall(
   name: string,
   input: unknown,
+  opts: ExecuteToolCallOptions = {},
 ): Promise<string | { error: string }> {
   // Runtime mode gate: plan-mode-blocked tools error out when called
   // while the conversation is still in plan mode. Read at call time so a
@@ -907,8 +1815,50 @@ async function executeToolCall(
     isError: result.isError,
   });
 
-  if (result.isError) return { error: result.content };
-  return result.content;
+  // Mid-turn user-interrupt injection. If the user typed a message while
+  // this stream was running, splice it in as a `<user-interrupt>` block
+  // ahead of the tool result so the model sees it on the very next step
+  // of the current turn — no manual "➤" needed. Messages with file
+  // attachments stay queued (they can't ride a text-only tool_result).
+  // Skipped for subagents: their context has nothing to do with the
+  // user's main conversation, and pulling interrupts into their
+  // tool_result would starve their step budget on out-of-scope prompts.
+  const content = opts.forSubagent
+    ? result.content
+    : injectInterrupts(result.content);
+
+  if (result.isError) return { error: content };
+  return content;
+}
+
+function injectInterrupts(original: string): string {
+  const store = useChatStore.getState();
+  const conversationId = store.currentConversationId;
+  if (!conversationId) return original;
+  const drained = store.consumeQueueAsInterrupts(conversationId);
+  if (drained.length === 0) return original;
+
+  // Thread each drained message into the streaming assistant's parts
+  // list so scroll-back shows a faithful trail of what the user said
+  // and when, even though the interrupt wasn't a standalone turn.
+  const active = store.activeStreams[conversationId];
+  if (active?.assistantMessageId) {
+    for (const m of drained) {
+      store.appendInterruptPart(conversationId, active.assistantMessageId, {
+        type: 'user_interrupt',
+        text: m.content.trim(),
+        at: m.createdAt,
+      });
+    }
+  }
+
+  const preface = drained
+    .map(
+      (m) =>
+        `<user-interrupt at="${new Date(m.createdAt).toISOString()}">\n${m.content.trim()}\n</user-interrupt>`,
+    )
+    .join('\n');
+  return `${preface}\n\n${original}`;
 }
 
 interface HookOutcome {

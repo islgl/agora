@@ -220,9 +220,30 @@ fn render_parts(parts: &[MessagePart]) -> String {
                 // Step markers are UI-only (drive the Plan renderer); they
                 // don't belong in exported markdown.
             }
+            MessagePart::UserInterrupt { text, at } => {
+                // Mid-turn user messages get a callout so the exported
+                // transcript reads "assistant → user butted in → assistant
+                // resumed" in the right order.
+                let stamp = format_interrupt_stamp(*at);
+                buf.push_str(&format!(
+                    "> **↪ user (mid-turn, {})** \n> {}\n\n",
+                    stamp,
+                    text.replace('\n', "\n> ").trim_end(),
+                ));
+            }
         }
     }
     buf
+}
+
+/// Format an epoch-millis timestamp as `HH:MM:SS` (UTC). Good enough for
+/// the export context — exact calendar date is in the message metadata.
+fn format_interrupt_stamp(ms: i64) -> String {
+    let secs_total = ms / 1000;
+    let h = ((secs_total / 3600) % 24).max(0);
+    let m = ((secs_total / 60) % 60).max(0);
+    let s = (secs_total % 60).max(0);
+    format!("{:02}:{:02}:{:02}", h, m, s)
 }
 
 fn sanitize_filename(s: &str) -> String {

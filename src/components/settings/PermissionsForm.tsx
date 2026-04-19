@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { ShieldCheck, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { usePermissionsStore } from '@/store/permissionsStore';
-import { SectionDivider } from './SectionDivider';
+import { SettingsPage } from './SettingsPage';
+import { SettingsSection } from './SettingsSection';
 
 const INPUT_CLASS =
   'rounded-xl border-border bg-card text-foreground focus-visible:border-ring focus-visible:ring-0 placeholder:text-muted-foreground';
@@ -82,25 +83,14 @@ export function PermissionsForm() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="size-4 text-primary" />
-          <h2
-            className="text-base text-foreground"
-            style={{ fontFamily: 'Georgia, serif', fontWeight: 500 }}
-          >
-            Tool permissions
-          </h2>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Persistent allow/deny rules for built-in tools. The agent asks before
-          every unmatched mutating call; save an "Always" choice here (or add
-          rules below) so routine commands stop interrupting you. Deny rules
-          always win over allow rules.
-        </p>
-      </div>
-
+    <SettingsPage
+      title="Permissions"
+      description="Persistent allow/deny rules for built-in tools. The agent asks before every unmatched mutating call; save an 'Always' choice here (or add rules below) so routine commands stop interrupting you. Deny rules always win over allow rules."
+    >
+      <SettingsSection
+        title="Add rule"
+        description="Pick a tool, optionally scope it with a glob pattern, then allow or deny."
+      >
       <form
         onSubmit={handleAdd}
         className="space-y-3 p-3 rounded-xl bg-card"
@@ -170,13 +160,12 @@ export function PermissionsForm() {
         </div>
         <p className="text-[11px] text-muted-foreground">{patternHint}</p>
       </form>
+      </SettingsSection>
 
-      <SectionDivider />
-
-      <div className="space-y-2">
-        <Label className="text-sm text-muted-foreground">
-          Saved rules ({sortedRules.length})
-        </Label>
+      <SettingsSection
+        title={`Saved rules (${sortedRules.length})`}
+        description="Deny rules always win. Click the trash icon to remove one."
+      >
         {sortedRules.length === 0 ? (
           <div
             className="p-3 rounded-xl text-xs text-muted-foreground bg-card"
@@ -226,7 +215,7 @@ export function PermissionsForm() {
             })}
           </ul>
         )}
-      </div>
-    </div>
+      </SettingsSection>
+    </SettingsPage>
   );
 }

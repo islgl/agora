@@ -52,6 +52,14 @@ pub enum MessagePart {
     StepStart {
         id: String,
     },
+    /// User message that arrived mid-turn and was spliced into the next
+    /// tool_result as a `<user-interrupt>` block. Persisted as a part on
+    /// the assistant message so the transcript shows what the user said
+    /// and when. `at` is the millis timestamp of submission.
+    UserInterrupt {
+        text: String,
+        at: i64,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -17,7 +17,7 @@ import {
   PROVIDER_DISPLAY_LABEL,
   PROVIDER_ORDER,
 } from './ProviderIcon';
-import { SectionDivider } from './SectionDivider';
+import { SettingsPage } from './SettingsPage';
 import type { ModelConfig } from '@/types';
 
 type TestOutcome = { ok: true; message: string } | { ok: false; error: string };
@@ -106,9 +106,11 @@ export function ModelList() {
   const anyTesting = testing.size > 0 || testingAll;
 
   return (
-    <div>
-      {modelConfigs.length > 0 && (
-        <div className="flex items-center justify-end pt-4 mb-2">
+    <SettingsPage
+      title="Models"
+      description="Named model configs the agent can chat as. Each config inherits provider + API key from the Providers tab; add one per model name you want to expose in the picker."
+      actions={
+        modelConfigs.length > 0 ? (
           <button
             onClick={() => void handleTestAll()}
             disabled={anyTesting}
@@ -124,18 +126,17 @@ export function ModelList() {
             )}
             {testingAll ? 'Testing all…' : 'Test all'}
           </button>
-        </div>
-      )}
-      <div className="space-y-5">
+        ) : undefined
+      }
+    >
+      <div className="space-y-6">
       {groups.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-6">
           No models configured. Add one to start chatting.
         </p>
       ) : (
-        groups.map(({ provider, models }, idx) => (
-          <div key={provider}>
-            {idx > 0 && <SectionDivider className="mb-5" />}
-            <section className="space-y-2">
+        groups.map(({ provider, models }) => (
+          <section key={provider} className="space-y-2">
             <div className="flex items-center gap-2 px-1">
               <ProviderIcon provider={provider} className="size-4 shrink-0" />
               <span className="text-sm font-semibold text-foreground">
@@ -221,8 +222,7 @@ export function ModelList() {
                 </div>
               ))}
             </div>
-            </section>
-          </div>
+          </section>
         ))
       )}
       <button
@@ -235,6 +235,6 @@ export function ModelList() {
         Add model
       </button>
       </div>
-    </div>
+    </SettingsPage>
   );
 }

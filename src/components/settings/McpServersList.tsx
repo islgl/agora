@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { useMcpStore } from '@/store/mcpStore';
 import type { McpServerConfig } from '@/types';
 import { McpServerForm } from './McpServerForm';
+import { SettingsPage } from './SettingsPage';
 
 const blankServer = (): McpServerConfig => ({
   id: '',
@@ -51,20 +52,10 @@ export function McpServersList() {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2
-          className="text-lg text-foreground mb-1"
-          style={{ fontFamily: 'Georgia, serif', fontWeight: 500 }}
-        >
-          MCP servers
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          External tool providers via Model Context Protocol. Supports stdio (local
-          process), Streamable HTTP, and legacy SSE.
-        </p>
-      </div>
-
+    <SettingsPage
+      title="MCP servers"
+      description="External tool providers via the Model Context Protocol. Supports stdio (local process), Streamable HTTP, and legacy SSE. Enabled servers get their tools merged into the agent's toolset on connect."
+    >
       <div className="space-y-2">
         {servers.length === 0 && (
           <div className="text-xs text-muted-foreground py-4">
@@ -122,6 +113,6 @@ export function McpServersList() {
           + Add MCP server
         </button>
       </div>
-    </div>
+    </SettingsPage>
   );
 }

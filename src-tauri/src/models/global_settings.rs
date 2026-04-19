@@ -41,6 +41,23 @@ pub struct GlobalSettings {
     /// falling back to the first config in the list. Empty = never set.
     #[serde(default)]
     pub active_model_id: String,
+    /// Embedding provider for auto-memory recall. `openai` | `gemini`.
+    #[serde(default = "default_embedding_provider")]
+    pub embedding_provider: String,
+    /// Embedding model id (e.g. `text-embedding-3-small`).
+    #[serde(default = "default_embedding_model")]
+    pub embedding_model: String,
+    /// When true, the post-turn memory extractor runs.
+    #[serde(default = "default_true")]
+    pub auto_memory_enabled: bool,
+}
+
+fn default_embedding_provider() -> String {
+    "openai".to_string()
+}
+
+fn default_embedding_model() -> String {
+    "text-embedding-3-small".to_string()
 }
 
 fn default_true() -> bool {

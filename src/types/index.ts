@@ -18,7 +18,13 @@ export type MessagePart =
   /** Marks the start of a new streamText step (one model-loop round trip).
    *  Used by the Plan renderer to group subsequent thinking / tool calls
    *  into per-step tasks. Emitted once per step, never persisted content. */
-  | { type: 'step_start'; id: string };
+  | { type: 'step_start'; id: string }
+  /** A user message that arrived mid-turn and was spliced into the next
+   *  tool_result as a `<user-interrupt>` block. Persisted as a part of
+   *  the streaming assistant message so the transcript shows a faithful
+   *  trail of what the user said and when. `at` is the millis timestamp
+   *  the user actually submitted. */
+  | { type: 'user_interrupt'; text: string; at: number };
 
 export interface Message {
   id: string;
@@ -97,12 +103,23 @@ export interface GlobalSettings {
   /** Skip the approval prompt for read-only tools (`read_file`, `glob`,
    *  `grep`, `read_task_output`). Default true. */
   autoApproveReadonly: boolean;
-  /** JSON blob for hook config. See `docs/TOOLS.md`. */
+  /** JSON blob for hook config. Structure is `{ preToolUse?: [...],
+   *  postToolUse?: [...] }` where each entry is `{ matcher, command,
+   *  failMode }`. Shape mirrors Claude Code's hook config; the frontend
+   *  owns the schema and Rust treats it as an opaque blob. */
   hooksJson: string;
   /** ID of the model selected via "Use" in Settings → Models. Empty until
    *  the user has picked one; loadModelConfigs still falls back to
    *  configs[0] if this points at a deleted model. */
   activeModelId: string;
+  /** Embedding provider for auto-memory vector recall. `openai` or `gemini`. */
+  embeddingProvider: string;
+  /** Embedding model id (e.g. `text-embedding-3-small`). */
+  embeddingModel: string;
+  /** When true, the post-turn extractor runs and persists candidates.
+   *  When false, the store is read-only — only explicit `remember` calls
+   *  mutate it. Recall still happens either way. */
+  autoMemoryEnabled: boolean;
 }
 
 export interface SkillsMeta {
@@ -201,6 +218,50 @@ export interface AskUserRequest {
 export interface AgentMdPayload {
   path: string | null;
   content: string;
+  truncated: boolean;
+}
+
+/** One file inside the Brand Layer (~/.agora/config/*.md). Path is null
+ *  when the file doesn't exist on disk — the UI treats that the same as
+ *  an empty file. */
+export interface BrandSection {
+  path: string | null;
+  content: string;
+  truncated: boolean;
+}
+
+/** Snapshot of all five Brand Layer files. Loaded on app start and
+ *  refreshed before every chat turn so user edits land in the next
+ *  system prompt without a manual reload. */
+export interface BrandPayload {
+  soul: BrandSection;
+  user: BrandSection;
+  tools: BrandSection;
+  memory: BrandSection;
+  agents: BrandSection;
+  configDir: string;
+}
+
+/** Which Brand file the frontend is writing to. AGENTS.md is deliberately
+ *  excluded — it's system-managed. */
+export type BrandEditableFile = 'SOUL.md' | 'USER.md' | 'TOOLS.md' | 'MEMORY.md';
+
+/** Metadata row for one Wiki page. Mirrors `commands::wiki::WikiPage`. */
+export interface WikiPage {
+  relPath: string;
+  title: string;
+  tags: string[];
+  category: string | null;
+  summary: string | null;
+  updatedAt: string | null;
+  sources: string[];
+  sizeBytes: number;
+}
+
+export interface WikiPageContents {
+  relPath: string;
+  content: string;
+  frontmatter: unknown;
   truncated: boolean;
 }
 

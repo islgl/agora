@@ -37,6 +37,12 @@ export function QueuedChips({
 
   if (queue.length === 0) return null;
 
+  // When a stream is running, text-only messages auto-inject into the
+  // next tool-call result as `<user-interrupt>` (see
+  // `injectInterrupts` in tools.ts). Messages with attachments can't
+  // ride a text-only tool_result and stay in the queue for manual
+  // dispatch. Helper text reflects both paths.
+  const hasAttachments = queue.some((m) => m.files.length > 0);
   const helperText = (() => {
     if (askUserPending) {
       return 'Answer the clarification above, then click ➤ on a chip to send it.';
@@ -45,9 +51,11 @@ export function QueuedChips({
       return 'Resolve the approval prompt above, then click ➤ on a chip to send it.';
     }
     if (isStreaming) {
-      return 'Waiting for the current response to finish before sending.';
+      return hasAttachments
+        ? "Attachments can't auto-inject — they'll send as a new turn once the response ends, or click ➤ to stop and send now."
+        : "These auto-inject on the assistant's next tool call, or send as a new turn once the response ends. Click ➤ to stop and send now.";
     }
-    return 'Click ➤ to send, ✕ to discard.';
+    return 'Queued — sending as a new turn. ✕ to discard.';
   })();
 
   return (
@@ -62,13 +70,43 @@ export function QueuedChips({
                   ? `${m.content.slice(0, 60)}…`
                   : m.content
                 : `${m.files.length} attachment${m.files.length === 1 ? '' : 's'}`;
+            // Three visual states:
+            //   - streaming + text-only → primary tint + ↪ prefix (will auto-inject)
+            //   - streaming + has files → amber tint (stays pending)
+            //   - not streaming → neutral (manual dispatch)
+            const willAutoInject = isStreaming && m.files.length === 0;
+            const stuckOnAttachments = isStreaming && m.files.length > 0;
+            const boxShadow = willAutoInject
+              ? '0 0 0 1px color-mix(in oklab, var(--primary) 40%, transparent)'
+              : stuckOnAttachments
+                ? '0 0 0 1px color-mix(in oklab, #d97757 45%, transparent)'
+                : '0 0 0 1px var(--border)';
+            const background = willAutoInject
+              ? 'color-mix(in oklab, var(--primary) 8%, var(--card))'
+              : stuckOnAttachments
+                ? 'color-mix(in oklab, #d97757 10%, var(--card))'
+                : 'var(--card)';
             return (
               <div
                 key={m.id}
-                className="flex items-center gap-1 rounded-full bg-card pl-3 pr-1 py-1 text-xs text-foreground"
-                style={{ boxShadow: '0 0 0 1px var(--border)' }}
-                title={m.content}
+                className="flex items-center gap-1 rounded-full pl-3 pr-1 py-1 text-xs text-foreground"
+                style={{ boxShadow, background }}
+                title={
+                  willAutoInject
+                    ? "Will auto-inject at the assistant's next tool call. Click ➤ to stop the stream and send as a new turn instead."
+                    : stuckOnAttachments
+                      ? "Attachments can't ride a tool_result. Click ➤ to stop the stream and send as a new turn."
+                      : m.content
+                }
               >
+                {willAutoInject && (
+                  <span
+                    aria-hidden
+                    className="text-primary/80 mr-0.5 font-medium"
+                  >
+                    ↪
+                  </span>
+                )}
                 <span className="truncate max-w-[36ch]">{preview}</span>
                 {m.files.length > 0 && m.content.length > 0 && (
                   <span className="text-muted-foreground ml-1">
@@ -78,12 +116,24 @@ export function QueuedChips({
                 <button
                   type="button"
                   onClick={() => onSend(m)}
-                  disabled={isStreaming || askUserPending || approvalPending}
-                  aria-label="Send queued message"
+                  // Approvals + ask-user prompts still block — those gates
+                  // own the turn and dispatching a new one around them
+                  // would skip the user decision. A streaming turn, by
+                  // contrast, can be cancelled cleanly.
+                  disabled={askUserPending || approvalPending}
+                  aria-label={
+                    isStreaming
+                      ? 'Stop current response and send as a new turn'
+                      : 'Send queued message'
+                  }
                   className="size-6 rounded-full flex items-center justify-center
                              text-muted-foreground hover:bg-accent hover:text-primary
                              disabled:opacity-40 disabled:cursor-not-allowed"
-                  title="Send now"
+                  title={
+                    isStreaming
+                      ? 'Stop the current response and send this as a new turn'
+                      : 'Send now'
+                  }
                 >
                   ➤
                 </button>

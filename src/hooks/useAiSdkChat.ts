@@ -16,10 +16,18 @@ import type {
 import { useChatStore } from '@/store/chatStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAgentMdStore } from '@/store/agentMdStore';
+import { useBrandStore } from '@/store/brandStore';
+import { useWikiStore } from '@/store/wikiStore';
+import { useAskUserStore } from '@/store/askUserStore';
 import { modelForConfig } from '@/lib/ai/providers';
 import { loadFrontendTools } from '@/lib/ai/tools';
 import { planThinking } from '@/lib/ai/thinking';
 import { webSearchToolsFor } from '@/lib/ai/web-search';
+import { buildWikiContext } from '@/lib/ai/wiki-selector';
+import {
+  extractAndStoreMemories,
+  fetchAutoMemoryContext,
+} from '@/lib/ai/auto-memory';
 
 /**
  * Phase 2 of the Vercel AI SDK migration: feature parity with the Rust
@@ -377,13 +385,16 @@ export function useAiSdkChat() {
         }
       : frontendTools;
 
-    // Refresh AGENT.md before each turn so edits on disk (or between
-    // mode switches) land in the system prompt without the user having
-    // to click the chip. Cheap — Rust just reads a small file.
+    // Refresh AGENT.md + Brand files before each turn so edits land in
+    // the next system prompt without a manual reload. Both reads are
+    // cheap (small files, Rust side). Kicked off in parallel.
     try {
-      await useAgentMdStore.getState().refresh();
+      await Promise.all([
+        useAgentMdStore.getState().refresh(),
+        useBrandStore.getState().refresh(),
+      ]);
     } catch (err) {
-      console.warn('AGENT.md refresh failed; using cached content', err);
+      console.warn('brand/agent refresh failed; using cached content', err);
     }
 
     // Without a nudge, Claude/GPT typically answer from training data even
@@ -391,11 +402,51 @@ export function useAiSdkChat() {
     // with today's date + a "prefer search over guessing" cue dramatically
     // raises the rate at which the model reaches for the registered tools.
     const agentMd = useAgentMdStore.getState().payload;
+    const brand = useBrandStore.getState().payload;
+
+    // Wiki selector runs before the main streamText call so selected
+    // pages can ride along in the same system prompt. On regenerate we
+    // reuse the just-above user message as the query since `userContent`
+    // is empty then. Selector failures return null → no wiki block (not
+    // an error).
+    const selectorQuery = isRegenerate
+      ? providerHistory[providerHistory.length - 1]?.content ?? ''
+      : userContent;
+    let wikiBlock: string | undefined;
+    try {
+      const ctx = await buildWikiContext(selectorQuery);
+      if (ctx) {
+        wikiBlock = ctx.block;
+        useWikiStore.getState().setLastInjected(conversationId, ctx.pages);
+      } else {
+        useWikiStore.getState().setLastInjected(conversationId, []);
+      }
+    } catch (err) {
+      console.warn('wiki context assembly failed', err);
+    }
+
+    // Auto-memory semantic recall. Runs in parallel with wiki selector
+    // when practical (both share `selectorQuery`). We only block on the
+    // memory fetch because its result goes into the system prompt.
+    let autoMemoryBlock: string | undefined;
+    try {
+      const mem = await fetchAutoMemoryContext(selectorQuery);
+      if (mem) autoMemoryBlock = mem.block;
+    } catch (err) {
+      console.warn('auto memory recall failed', err);
+    }
+
     const systemPrompt = buildSystemPrompt({
       webSearch,
       hasTavily: webSearch && settings.tavilyApiKey.trim().length > 0,
       mode: conversationMode,
       agentMd: agentMd.content,
+      brand,
+      wikiBlock,
+      autoMemoryBlock,
+      // Only meaningful on brand-new turns (not regenerates). `userContent`
+      // is empty on regenerate; hasRememberIntent handles that gracefully.
+      userContent: isRegenerate ? undefined : userContent,
     });
 
     const finalize = async () => {
@@ -414,6 +465,34 @@ export function useAiSdkChat() {
         }
       }
       maybeRefreshTitle(conversationId, effectiveModel);
+
+      // Fire-and-forget auto-memory extraction. The user shouldn't wait
+      // on extractor + embedding latency to see their reply finalize —
+      // failures are logged inside, not surfaced here.
+      if (finalMsg) {
+        void extractAndStoreMemories({
+          conversationId,
+          userMessage: userMsg,
+          assistantMessage: finalMsg,
+        });
+
+        // Append the turn to today's log so the Dreaming job has a
+        // source to distill from. Fire-and-forget — log failures
+        // shouldn't block the UI.
+        if (userMsg || !isRegenerate) {
+          const userText = userMsg?.content ?? '';
+          const assistantText = finalMsg.content ?? '';
+          if (userText || assistantText) {
+            void invoke('append_daily_log', {
+              entry: {
+                conversationId,
+                userText,
+                assistantText,
+              },
+            }).catch((err) => console.warn('append_daily_log failed', err));
+          }
+        }
+      }
     };
 
     try {
@@ -531,6 +610,12 @@ export function useAiSdkChat() {
   const cancel = async (conversationId: string) => {
     const active = useChatStore.getState().activeStreams[conversationId];
     if (!active) return;
+    // Unblock any in-flight ask_user prompts so the stream's paused
+    // tool.execute() resolves. Without this, hitting Stop while the
+    // clarification gate is up leaves an orphaned prompt on screen +
+    // a dangling promise in the runtime; the next turn's auto-dispatch
+    // would then fire with a stale AskUser state still blocking UI.
+    useAskUserStore.getState().cancelPending();
     const abort = activeAborts.get(conversationId);
     if (abort) {
       try {
@@ -633,14 +718,90 @@ function formatError(e: unknown): string {
   }
 }
 
+const CONSTITUTION_BLOCK = `<constitution>
+Before every response, internally verify:
+1. SAFETY — does this cross the <agents> boundaries above? If yes, refuse and explain.
+2. PRIVACY — would the answer leak user-private data? If yes, rewrite before sending.
+3. IRREVERSIBLE — is an action here hard to undo? If yes, confirm with the user first.
+Proceed only when all three pass. Never mention running this check in the user-facing reply.
+</constitution>`;
+
+const REMEMBER_TRIGGERS = [
+  '请记住',
+  '记住',
+  '永远记住',
+  '以后都要',
+  '以后记得',
+  'remember that',
+  'please remember',
+  'keep in mind that',
+  'from now on',
+  'always use',
+];
+
+function hasRememberIntent(userContent: string | undefined): boolean {
+  if (!userContent) return false;
+  const lower = userContent.toLowerCase();
+  return REMEMBER_TRIGGERS.some((t) => lower.includes(t.toLowerCase()));
+}
+
 function buildSystemPrompt(opts: {
   webSearch: boolean;
   hasTavily: boolean;
   mode: ConversationMode;
   agentMd?: string;
+  brand?: import('@/types').BrandPayload;
+  wikiBlock?: string;
+  autoMemoryBlock?: string;
+  userContent?: string;
 }): string | undefined {
   const today = new Date().toISOString().slice(0, 10);
-  const lines: string[] = [`Today's date is ${today}.`];
+  const lines: string[] = [];
+
+  // Brand Layer goes first so identity/safety rules anchor everything
+  // that follows. AGENTS.md carries non-negotiables, the other three
+  // carry user-editable personality + context. An empty brand (fresh
+  // install with no seeded files on disk) is skipped silently.
+  const brandBlock = formatBrandBlock(opts.brand);
+  if (brandBlock) {
+    lines.push(brandBlock);
+  }
+
+  // Wiki Layer sits between Brand and the operational prose. Ordering
+  // matters: Brand > Wiki > Memory > date/mode/tools. The selector
+  // already picked only-relevant pages — if nothing matched, no block.
+  if (opts.wikiBlock && opts.wikiBlock.trim()) {
+    lines.push(opts.wikiBlock);
+  }
+
+  // Auto-memory recall slots in right after the Wiki layer so recalled
+  // memories contextualize whatever wiki pages landed above.
+  if (opts.autoMemoryBlock && opts.autoMemoryBlock.trim()) {
+    lines.push(opts.autoMemoryBlock);
+  }
+
+  // Constitutional self-check sits below <brand> so the three rules can
+  // reference <agents>. Three items on purpose — Anthropic's practical
+  // guidance is that CAI degrades past ~5 rules as attention dilutes.
+  lines.push(CONSTITUTION_BLOCK);
+
+  // Remember-intent nudge. We never route on keywords ourselves —
+  // trigger phrases like "remember" / "记住" are far too common in
+  // ordinary chat. Instead, mark the turn and let the model decide
+  // whether the phrase is an actual remember-this request vs. a
+  // conversational "note that…".
+  if (hasRememberIntent(opts.userContent)) {
+    lines.push(
+      "The user's latest message contains a remember-intent phrase. If — " +
+        'and only if — they are asking you to commit a durable fact about ' +
+        'themselves, their preferences, or their project, call the ' +
+        '`append_brand_file` tool with the appropriate `file` BEFORE ' +
+        'answering. Do not call it for rhetorical "remember that we ' +
+        'discussed X" mentions or for content inside quoted code / docs.',
+    );
+  }
+
+  lines.push(`Today's date is ${today}.`);
 
   if (opts.agentMd && opts.agentMd.trim()) {
     lines.push(
@@ -682,6 +843,38 @@ function buildSystemPrompt(opts: {
 
   const prompt = lines.join('\n\n').trim();
   return prompt.length > 0 ? prompt : undefined;
+}
+
+/**
+ * Render the Brand Layer as XML-ish blocks at the top of the system prompt.
+ * XML tags help the model visually segment rule-of-law sections from the
+ * softer date / tools prose that follows — the same pattern Anthropic
+ * recommends for long-context prompt hygiene.
+ *
+ * Section ordering is deliberate:
+ *   1. <agents>  — safety (overrides everything below)
+ *   2. <soul>    — personality + user's style overrides
+ *   3. <user>    — who the user is
+ *   4. <tools>   — their tech preferences
+ *
+ * Returns null when all five sections are empty (nothing to inject).
+ */
+function formatBrandBlock(
+  brand: import('@/types').BrandPayload | undefined,
+): string | null {
+  if (!brand) return null;
+  const sections: string[] = [];
+  const push = (tag: string, content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) return;
+    sections.push(`<${tag}>\n${trimmed}\n</${tag}>`);
+  };
+  push('agents', brand.agents.content);
+  push('soul', brand.soul.content);
+  push('user', brand.user.content);
+  push('tools', brand.tools.content);
+  if (sections.length === 0) return null;
+  return `<brand>\n${sections.join('\n\n')}\n</brand>`;
 }
 
 function isOfficialAnthropicBase(baseUrl: string): boolean {

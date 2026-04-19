@@ -20,6 +20,74 @@ pub fn skills_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// Brand Layer — SOUL / USER / TOOLS / MEMORY / AGENTS live here.
+pub fn config_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = agora_dir(app)?.join("config");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+/// Wiki Layer — structured knowledge pages the agent reads and writes.
+pub fn wiki_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = agora_dir(app)?.join("wiki");
+    for sub in ["concepts", "projects", "domains"] {
+        std::fs::create_dir_all(dir.join(sub)).map_err(|e| e.to_string())?;
+    }
+    Ok(dir)
+}
+
+/// Raw Layer — user drop-in inbox. A file-watcher turns new entries into
+/// wiki pages via a background subagent.
+pub fn raw_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = agora_dir(app)?.join("raw");
+    for sub in ["articles", "papers", "notes"] {
+        std::fs::create_dir_all(dir.join(sub)).map_err(|e| e.to_string())?;
+    }
+    Ok(dir)
+}
+
+/// Per-day conversation logs consumed by Dreaming.
+pub fn logs_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = agora_dir(app)?.join("logs");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+/// Dreaming output — candidate memory edits awaiting user confirmation.
+pub fn dreams_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = agora_dir(app)?.join("dreams");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+/// Resolve one of the known Agora subdirectories by name. Used by the
+/// `open_agora_folder` synth tool so the agent can hand the user a
+/// Finder/Explorer window without hardcoding platform paths in the
+/// frontend. Empty name returns the agora root itself.
+#[tauri::command]
+pub async fn resolve_agora_path(
+    app: AppHandle,
+    subdir: String,
+) -> Result<String, String> {
+    let name = subdir.trim();
+    let target = match name {
+        "" => agora_dir(&app)?,
+        "config" => config_dir(&app)?,
+        "wiki" => wiki_dir(&app)?,
+        "raw" => raw_dir(&app)?,
+        "logs" => logs_dir(&app)?,
+        "dreams" => dreams_dir(&app)?,
+        "skills" => skills_dir(&app)?,
+        "workspace" => default_workspace_dir(&app)?,
+        other => {
+            return Err(format!(
+                "unknown agora subdir `{other}` (allowed: config, wiki, raw, logs, dreams, skills, workspace, or empty for the root)"
+            ))
+        }
+    };
+    Ok(target.to_string_lossy().into_owned())
+}
+
 /// Default workspace root applied on first launch so built-in FS/Bash tools
 /// have a scoped place to operate without the user having to pick one. Users
 /// can point this elsewhere (or clear it) via Settings → General.

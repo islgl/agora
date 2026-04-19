@@ -16,6 +16,9 @@ const EMPTY_GLOBAL_SETTINGS: GlobalSettings = {
   autoApproveReadonly: true,
   hooksJson: '{}',
   activeModelId: '',
+  embeddingProvider: 'openai',
+  embeddingModel: 'text-embedding-3-small',
+  autoMemoryEnabled: true,
 };
 
 interface SettingsState {

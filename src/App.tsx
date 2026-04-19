@@ -8,6 +8,10 @@ import { PrintOverlay } from '@/components/chat/PrintOverlay';
 import { useChatStore } from '@/store/chatStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAgentMdStore } from '@/store/agentMdStore';
+import { useBrandStore } from '@/store/brandStore';
+import { mountWikiIngest, unmountWikiIngest } from '@/lib/ai/wiki-ingest';
+import { runDreaming, shouldRun as shouldRunDreaming } from '@/lib/ai/dreaming';
+import { toast } from 'sonner';
 
 const SIDEBAR_OFFSET_REM = 16; // 15rem card + 1rem padding
 
@@ -16,6 +20,7 @@ export default function App() {
   const { loadModelConfigs, loadGlobalSettings, activeModelId, globalSettings } =
     useSettingsStore();
   const refreshAgentMd = useAgentMdStore((s) => s.refresh);
+  const refreshBrand = useBrandStore((s) => s.refresh);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
@@ -35,6 +40,46 @@ export default function App() {
   useEffect(() => {
     void refreshAgentMd();
   }, [globalSettings.workspaceRoot, refreshAgentMd]);
+
+  // Prime the Brand Layer cache once on mount so Settings → Brand opens
+  // with populated editors even before the user sends their first message.
+  useEffect(() => {
+    void refreshBrand();
+  }, [refreshBrand]);
+
+  // Phase 4 · subscribe to the raw-drop event bus. Wiki ingest spawns a
+  // background subagent whenever a file lands in ~/.agora/raw/ — no UI
+  // interaction required. Tear down on unmount so hot-reload doesn't
+  // accumulate listeners.
+  useEffect(() => {
+    void mountWikiIngest();
+    return () => unmountWikiIngest();
+  }, []);
+
+  // Phase 6 · Dreaming opportunistic trigger. On mount, check if a run
+  // is due (>20h since last run and local hour in the 2-6 window). We
+  // delay 60s so the user isn't hit with an LLM call the instant they
+  // open the app. The result lands silently in the Dream Inbox — no
+  // toast unless there was something to say.
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        if (!(await shouldRunDreaming())) return;
+        const dream = await runDreaming();
+        if (dream && dream.candidates.length > 0) {
+          toast.message(
+            `🌙 Dreaming distilled ${dream.candidates.length} candidate memories for ${dream.date}`,
+            {
+              description: 'Review in Settings → Dreams to accept or discard.',
+            },
+          );
+        }
+      } catch (err) {
+        console.warn('Dreaming auto-run failed', err);
+      }
+    }, 60_000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

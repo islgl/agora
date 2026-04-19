@@ -387,6 +387,12 @@ const PromptInputAction: React.FC<PromptInputActionProps> = ({
 export interface SlashCommand {
   command: string;
   description?: string;
+  /** Optional expansion text. When present, picking the item from the
+   *  menu replaces the slash token with this natural-language prompt
+   *  instead of `cmd + ' '`. Use it for UI-only commands whose job is
+   *  to shortcut a common request to the model. Commands that take
+   *  arguments (e.g. `/open <subdir>`) should omit `prompt`. */
+  prompt?: string;
 }
 
 export interface PromptInputBoxProps {
@@ -509,6 +515,10 @@ export const PromptInputBox = React.forwardRef<
     setInput('');
     setFiles([]);
     setPreviews({});
+    // Collapse back to compact height after sending — the expanded state
+    // is intended for drafting long messages, and once the draft is out
+    // the door the user's next turn almost always starts short again.
+    setExpanded(false);
   };
 
   // Slash-command completion. Active while the input is a single-line
@@ -535,12 +545,17 @@ export const PromptInputBox = React.forwardRef<
     if (slashIndex >= slashMatches.length) setSlashIndex(0);
   }, [slashMenuOpen, slashMatches.length, slashIndex]);
 
-  const pickSlashCommand = (cmd: string) => {
-    // Insert `<cmd> ` into the box and close the menu. We don't
-    // auto-submit — some future commands may take arguments
-    // (e.g. `/prompt <text>`), so the user still needs one Enter to fire
-    // after picking. Argument-less commands are a single extra keystroke.
-    setInput(cmd + ' ');
+  const pickSlashCommand = (cmd: SlashCommand) => {
+    // If the command has an expansion `prompt`, the pick replaces the
+    // slash token with that natural-language prompt — the model
+    // handles it through its normal tool chain. Otherwise insert
+    // `<cmd> ` and let the user type an argument (e.g. `/open raw`)
+    // or just hit Enter.
+    if (cmd.prompt) {
+      setInput(cmd.prompt);
+    } else {
+      setInput(cmd.command + ' ');
+    }
   };
 
   const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -565,7 +580,7 @@ export const PromptInputBox = React.forwardRef<
       const target = slashMatches[slashIndex];
       if (!target) return;
       e.preventDefault();
-      pickSlashCommand(target.command);
+      pickSlashCommand(target);
     } else if (e.key === 'Escape') {
       e.preventDefault();
       setInput('');
@@ -605,7 +620,7 @@ export const PromptInputBox = React.forwardRef<
                   e.preventDefault();
                 }}
                 onMouseEnter={() => setSlashIndex(i)}
-                onClick={() => pickSlashCommand(cmd.command)}
+                onClick={() => pickSlashCommand(cmd)}
                 className={cn(
                   'flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left',
                   i === slashIndex

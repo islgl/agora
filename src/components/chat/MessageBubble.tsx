@@ -152,10 +152,43 @@ function renderParts(
   parts.forEach((p, i) => {
     if (p.type === 'text') {
       out.push(<MarkdownRenderer key={i} content={p.text} />);
+    } else if (p.type === 'user_interrupt') {
+      out.push(<InterruptInline key={`interrupt-${i}`} text={p.text} at={p.at} />);
     }
   });
 
   return out;
+}
+
+/**
+ * Mid-turn interrupt visualization. Rendered inline between assistant
+ * text blocks so the transcript reads "assistant said A → user butted
+ * in with B → assistant continued with C". Deliberately muted — the
+ * main signal is the assistant's reaction on either side.
+ */
+function InterruptInline({ text, at }: { text: string; at: number }) {
+  const stamp = new Date(at).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return (
+    <div
+      className="my-3 ml-auto max-w-[70%] rounded-2xl rounded-tr-md px-3 py-2
+                 text-[13px] leading-relaxed text-foreground/80 whitespace-pre-wrap"
+      style={{
+        background: 'color-mix(in oklab, var(--secondary) 65%, transparent)',
+        boxShadow: '0 0 0 1px var(--border)',
+      }}
+      title={`Injected mid-turn at ${stamp}`}
+    >
+      <div className="mb-0.5 flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+        <span>↪ interrupt</span>
+        <span>·</span>
+        <span>{stamp}</span>
+      </div>
+      {text}
+    </div>
+  );
 }
 
 interface EditBubbleProps {

@@ -23,6 +23,11 @@ interface AskUserState {
   request: (req: AskUserRequest) => Promise<string>;
   /** Called by the UI once the user picks an option or submits free text. */
   answerCurrent: (answer: string) => void;
+  /** Resolve every in-flight ask_user promise with a sentinel and wipe
+   *  the visible prompt. Called from the chat-cancel path so stopping a
+   *  stream while the gate is up doesn't leave an orphaned prompt on
+   *  screen or a hanging tool.execute() promise behind it. */
+  cancelPending: () => void;
 }
 
 export const useAskUserStore = create<AskUserState>()((set, get) => ({
@@ -54,5 +59,15 @@ export const useAskUserStore = create<AskUserState>()((set, get) => ({
     } else {
       set({ currentPrompt: null, currentResolve: null, queue: [] });
     }
+  },
+
+  cancelPending: () => {
+    const state = get();
+    // Sentinel lets any awaiting `tool.execute` unwind cleanly — the
+    // stream is being torn down anyway, so the string won't actually
+    // reach the model.
+    if (state.currentResolve) state.currentResolve('[cancelled]');
+    for (const entry of state.queue) entry.resolve('[cancelled]');
+    set({ currentPrompt: null, currentResolve: null, queue: [] });
   },
 }));

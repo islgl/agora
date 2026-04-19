@@ -2,11 +2,13 @@ mod builtins;
 mod commands;
 mod db;
 mod mcp;
+mod memory_auto;
 mod models;
 mod paths;
 mod skills;
 mod state;
 mod tools;
+mod wiki_watcher;
 
 use commands::{
     branches, conversations, global_settings as global_settings_cmds, mcp as mcp_cmds,
@@ -26,6 +28,22 @@ pub fn run() {
             // before touching the new paths, so we don't stomp a fresh DB.
             paths::migrate_from_legacy_dir(&handle);
 
+            // Brand Layer · seed SOUL.md + AGENTS.md on first launch so
+            // fresh installs have a working personality out of the box.
+            // Tolerates failure (read-only home dir, permission error) —
+            // the loader will fall back to empty sections.
+            if let Ok(cfg_dir) = paths::config_dir(&handle) {
+                let _ = commands::brand_loader::ensure_defaults(&cfg_dir);
+            }
+            // Wiki / Raw / Logs / Dreams directories are created lazily by
+            // their helpers, but touching them here ensures the folder
+            // layout exists the first time the user opens ~/.agora/ in
+            // Finder.
+            let _ = paths::wiki_dir(&handle);
+            let _ = paths::raw_dir(&handle);
+            let _ = paths::logs_dir(&handle);
+            let _ = paths::dreams_dir(&handle);
+
             let db_file =
                 paths::db_path(&handle).expect("failed to resolve ~/.agora/agora.db");
 
@@ -35,6 +53,7 @@ pub fn run() {
             let mcp_manager = mcp::McpManager::new();
             let skill_registry = skills::SkillRegistry::new();
             let builtins_runtime = builtins::BuiltinsRuntime::new();
+            let memory_store = memory_auto::MemoryStore::new(pool.clone());
 
             // Best-effort startup: connect any enabled MCP servers and load
             // skills from ~/.agora/skills. Both tolerate failure silently so a
@@ -132,13 +151,33 @@ pub fn run() {
                 });
             }
 
+            // Rehydrate the HNSW graph from whatever's already in SQLite
+            // so Top-K search works on the very first turn after a
+            // restart. Spawn on the tokio runtime so startup stays sync.
+            {
+                let store_for_init = memory_store.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = store_for_init.rehydrate().await {
+                        eprintln!("memory_auto rehydrate failed: {e}");
+                    }
+                });
+            }
+
             app.manage(pool);
             app.manage(state::AppState::default());
             app.manage(state::RuntimeHandles {
                 mcp: mcp_manager,
                 skills: skill_registry,
                 builtins: builtins_runtime,
+                memory: memory_store,
             });
+
+            // Phase 4 · kick off the Raw-Layer file watcher so drops
+            // into ~/.agora/raw/ fire the `wiki-ingest-request` event.
+            // Failures inside the watcher are logged but don't block
+            // app startup — ingest is a nice-to-have, not critical.
+            wiki_watcher::start(handle.clone());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -174,6 +213,33 @@ pub fn run() {
             commands::todos::get_todos,
             commands::todos::save_todos,
             commands::agent_md::read_agent_md,
+            commands::brand_loader::read_brand,
+            commands::brand_loader::read_brand_file,
+            commands::brand_loader::write_brand_file,
+            commands::brand_loader::get_config_dir,
+            commands::memory_active::append_to_memory,
+            commands::memory_active::delete_memory_line,
+            commands::wiki::list_wiki_pages,
+            commands::wiki::read_wiki_page,
+            commands::wiki::write_wiki_page,
+            commands::wiki::delete_wiki_page,
+            commands::wiki::update_wiki_index,
+            commands::raw::list_raw_files,
+            commands::raw::extract_raw_text,
+            paths::resolve_agora_path,
+            commands::memory_auto_cmd::add_auto_memory,
+            commands::memory_auto_cmd::search_auto_memory,
+            commands::memory_auto_cmd::list_auto_memory,
+            commands::memory_auto_cmd::delete_auto_memory,
+            commands::memory_auto_cmd::clear_auto_memory,
+            commands::daily_log::append_daily_log,
+            commands::daily_log::read_daily_log,
+            commands::daily_log::list_dream_dates,
+            commands::daily_log::read_dream,
+            commands::daily_log::write_dream,
+            commands::daily_log::discard_dream,
+            commands::daily_log::dreaming_should_run,
+            commands::daily_log::mark_dreaming_ran,
             commands::hooks::run_hooks,
             mcp_cmds::load_mcp_servers,
             mcp_cmds::save_mcp_server,

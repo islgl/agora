@@ -1,5 +1,11 @@
 pub mod agent_md;
 pub mod ai_proxy;
+pub mod brand_loader;
+pub mod daily_log;
+pub mod memory_active;
+pub mod memory_auto_cmd;
+pub mod raw;
+pub mod wiki;
 pub mod branches;
 pub mod tool_bridge;
 pub mod conversations;

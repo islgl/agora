@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useSettingsStore } from '@/store/settingsStore';
 import { ProviderIcon } from './ProviderIcon';
 import { MaskedKeyInput } from './MaskedKeyInput';
-import { SectionDivider } from './SectionDivider';
+import { SettingsPage } from './SettingsPage';
+import { SettingsSection } from './SettingsSection';
 import type { GlobalSettings, Provider } from '@/types';
 
 const INPUT_CLASS =
@@ -34,7 +34,6 @@ export function ProvidersForm() {
   const [form, setForm] = useState<GlobalSettings>(globalSettings);
   const [saving, setSaving] = useState(false);
 
-  // Keep local form in sync when store changes (e.g. first load).
   useEffect(() => {
     setForm(globalSettings);
   }, [globalSettings]);
@@ -59,63 +58,66 @@ export function ProvidersForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-1.5">
-        <Label htmlFor="apiKey" className="text-sm text-muted-foreground">
-          API key
-        </Label>
-        <MaskedKeyInput
-          id="apiKey"
-          placeholder="••••"
-          className={INPUT_CLASS}
-          value={form.apiKey}
-          onChange={(next) => setForm((f) => ({ ...f, apiKey: next }))}
-        />
-        <p className="text-xs text-muted-foreground">
-          Shared across every provider — useful when all traffic goes through a
-          single gateway.
-        </p>
-      </div>
-
-      <SectionDivider />
-
-      <div className="space-y-3">
-        <Label className="text-sm text-muted-foreground">Base URLs</Label>
-        {PROVIDERS.map((p) => {
-          const field = BASE_URL_FIELD[p];
-          return (
-            <div key={p} className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 w-28 shrink-0">
-                <ProviderIcon provider={p} className="size-3.5 shrink-0" />
-                <span className="text-xs text-muted-foreground">
-                  {PROVIDER_LABEL[p]}
-                </span>
-              </div>
-              <Input
-                type="text"
-                className={`${INPUT_CLASS} flex-1`}
-                value={form[field]}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, [field]: e.target.value }))
-                }
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex justify-end gap-2 pt-1">
-        <button
-          type="submit"
-          disabled={!dirty || saving}
-          className="px-4 py-2 rounded-xl text-sm text-primary-foreground bg-primary
-                     hover:bg-primary/90 transition-colors
-                     disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ boxShadow: '0 0 0 1px var(--primary)' }}
+    <form onSubmit={handleSubmit}>
+      <SettingsPage
+        title="Providers"
+        description="Where Agora sends chat traffic. One API key is shared across providers (gateway-friendly); base URLs are per provider so you can point some at a proxy and leave others on the official endpoint."
+      >
+        <SettingsSection
+          title="Credentials"
+          description="Stored locally in SQLite. Use a single key when you're routing through a gateway that re-authenticates per provider; otherwise each provider ignores the key when its base URL doesn't match."
         >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </div>
+          <MaskedKeyInput
+            id="apiKey"
+            placeholder="••••"
+            className={INPUT_CLASS}
+            value={form.apiKey}
+            onChange={(next) => setForm((f) => ({ ...f, apiKey: next }))}
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Base URLs"
+          description="Official endpoints by default. Swap in a proxy / gateway URL per provider as needed."
+        >
+          <div className="space-y-2">
+            {PROVIDERS.map((p) => {
+              const field = BASE_URL_FIELD[p];
+              return (
+                <div key={p} className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 w-28 shrink-0">
+                    <ProviderIcon provider={p} className="size-3.5 shrink-0" />
+                    <span className="text-xs text-muted-foreground">
+                      {PROVIDER_LABEL[p]}
+                    </span>
+                  </div>
+                  <Input
+                    type="text"
+                    className={`${INPUT_CLASS} flex-1`}
+                    value={form[field]}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, [field]: e.target.value }))
+                    }
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </SettingsSection>
+
+        <div className="flex justify-end pt-1">
+          <button
+            type="submit"
+            disabled={!dirty || saving}
+            className="px-4 py-2 rounded-xl text-sm text-primary-foreground bg-primary
+                       hover:bg-primary/90 transition-colors
+                       disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ boxShadow: '0 0 0 1px var(--primary)' }}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </SettingsPage>
     </form>
   );
 }

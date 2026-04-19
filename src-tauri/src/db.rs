@@ -173,6 +173,14 @@ const MIGRATIONS: &[&str] = &[
     "ALTER TABLE global_settings ADD COLUMN auto_compact_threshold INTEGER NOT NULL DEFAULT 80",
     "ALTER TABLE global_settings ADD COLUMN hooks_json TEXT NOT NULL DEFAULT '{}'",
     "ALTER TABLE global_settings ADD COLUMN active_model_id TEXT NOT NULL DEFAULT ''",
+    // Phase 5 · auto-memory store. `vector` holds packed f32 little-endian
+    // bytes; an empty blob means embedding failed and the row is text-only
+    // (we still return it in non-semantic queries so info isn't lost).
+    "CREATE TABLE IF NOT EXISTS memory_auto (\n        id TEXT PRIMARY KEY,\n        text TEXT NOT NULL,\n        kind TEXT NOT NULL,\n        vector BLOB,\n        source_conversation_id TEXT,\n        source_message_id TEXT,\n        created_at INTEGER NOT NULL\n    )",
+    "CREATE INDEX IF NOT EXISTS idx_memory_auto_created ON memory_auto(created_at DESC)",
+    "ALTER TABLE global_settings ADD COLUMN embedding_provider TEXT NOT NULL DEFAULT 'openai'",
+    "ALTER TABLE global_settings ADD COLUMN embedding_model TEXT NOT NULL DEFAULT 'text-embedding-3-small'",
+    "ALTER TABLE global_settings ADD COLUMN auto_memory_enabled INTEGER NOT NULL DEFAULT 1",
 ];
 
 /// One-shot backfills. Keyed by a flag in `meta_flags`; skipped once done.

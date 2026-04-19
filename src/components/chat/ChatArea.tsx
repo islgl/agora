@@ -9,6 +9,7 @@ import { ApprovalGate } from './ApprovalGate';
 import { AskUserGate } from './AskUserGate';
 import { SubagentsIndicator } from './SubagentsIndicator';
 import { AgentMdChip } from './AgentMdChip';
+import { WikiContextChip } from './WikiContextChip';
 import { QueuedChips } from './QueuedChips';
 import { toast } from 'sonner';
 import { celebrateFirstSendOnce } from '@/lib/celebration';
@@ -60,6 +61,27 @@ export function ChatArea() {
       void loadTodos(currentConversationId);
     }
   }, [currentConversationId, loadMessages, loadTodos]);
+
+  // Auto-dispatch any queued messages the moment a stream ends. The
+  // original design required manual ➤ so the user could see the
+  // assistant's last response before deciding whether the queued text
+  // still made sense; in practice that extra click is busywork — the
+  // user typed the queued message on purpose, they want it delivered.
+  // Auto-inject already handles the common case mid-turn; this covers
+  // the "pure-text response" and "attachment" tails that can't inject.
+  // Dispatches one at a time: each new stream sets isStreaming=true,
+  // the effect waits, fires again at the next finalize for the rest.
+  useEffect(() => {
+    if (isStreaming) return;
+    if (!currentConversationId) return;
+    const queue = useChatStore.getState().pendingQueue[currentConversationId];
+    if (!queue || queue.length === 0) return;
+    void handleSendQueued(queue[0]);
+    // Deps limited to isStreaming + conversationId. handleSendQueued /
+    // queue itself aren't in deps on purpose — we only want this to
+    // fire on a stream-end edge, not every time the queue mutates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStreaming, currentConversationId]);
 
   const requireActiveModel = () => {
     const modelConfig = modelConfigs.find((m) => m.id === activeModelId);
@@ -185,6 +207,23 @@ export function ChatArea() {
 
   const handleSendQueued = async (msg: QueuedMessage) => {
     if (!currentConversationId) return;
+    // Race guard: if the chip got auto-injected into a tool_result
+    // between when the button rendered and now, it's already been
+    // delivered once. Dispatching again would double-send.
+    const stillQueued = useChatStore
+      .getState()
+      .pendingQueue[currentConversationId]?.some((m) => m.id === msg.id);
+    if (!stillQueued) return;
+
+    // Mid-stream click on ➤ = "stop and send as a new turn". Cancel
+    // the in-flight stream first so we don't run two concurrent
+    // streams on the same conversation. `cancel` persists whatever
+    // the assistant had produced, so nothing is lost — it just stops
+    // where it is. Non-streaming case is a plain dispatch.
+    if (isStreaming) {
+      await cancel(currentConversationId);
+    }
+
     // Pop the chip before dispatching so a second click (or a re-render
     // that re-uses a stale reference) can't double-send.
     cancelQueuedMessage(currentConversationId, msg.id);
@@ -211,6 +250,7 @@ export function ChatArea() {
           className="flex justify-end items-center gap-2 px-4 pt-1"
           data-chat-print="hide"
         >
+          <WikiContextChip conversationId={currentConversationId} />
           <AgentMdChip />
           <SubagentsIndicator />
         </div>
@@ -231,7 +271,11 @@ export function ChatArea() {
       />
       <ApprovalGate />
       <AskUserGate />
-      <div className="flex justify-end px-4 pt-1" data-chat-print="hide">
+      <div
+        className="flex justify-end items-center gap-2 px-4 pt-1"
+        data-chat-print="hide"
+      >
+        <WikiContextChip conversationId={currentConversationId} />
         <SubagentsIndicator />
       </div>
       {currentConversationId && (
