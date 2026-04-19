@@ -1,14 +1,23 @@
-# Agora
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/logo-dark.png">
+    <img src="./docs/assets/logo-light.png" width="120" alt="Agora">
+  </picture>
+</p>
 
-A desktop AI chat client with first-class agent tooling — built with Tauri, React, and Rust.
+<h1 align="center">Agora</h1>
 
-[![Version](https://img.shields.io/github/v/release/islgl/agora?include_prereleases&label=version&color=blue)](https://github.com/islgl/agora/releases)
-[![License](https://img.shields.io/github/license/islgl/agora?color=green)](./LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS-000?logo=apple&logoColor=white)](https://github.com/islgl/agora/releases)
-[![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Rust](https://img.shields.io/badge/Rust-stable-DEA584?logo=rust&logoColor=white)](https://www.rust-lang.org)
+<p align="center">A desktop AI chat client with first-class agent tooling — built with Tauri, React, and Rust.</p>
+
+<p align="center">
+  <a href="https://github.com/islgl/agora/releases"><img src="https://img.shields.io/github/v/release/islgl/agora?include_prereleases&label=version&color=blue" alt="Version"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/islgl/agora?color=green" alt="License"></a>
+  <a href="https://github.com/islgl/agora/releases"><img src="https://img.shields.io/badge/platform-macOS-000?logo=apple&logoColor=white" alt="Platform"></a>
+  <a href="https://tauri.app"><img src="https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white" alt="Tauri"></a>
+  <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React"></a>
+  <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript"></a>
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-stable-DEA584?logo=rust&logoColor=white" alt="Rust"></a>
+</p>
 
 Agora pairs a clean chat UI with a real agent runtime: MCP servers, skills, built-in FS/Bash/Grep tools, approval prompts, todos, hooks, and conversation branching — all stored locally under `~/.agora/`.
 
