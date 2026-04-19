@@ -20,6 +20,15 @@ pub fn skills_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// Default workspace root applied on first launch so built-in FS/Bash tools
+/// have a scoped place to operate without the user having to pick one. Users
+/// can point this elsewhere (or clear it) via Settings → General.
+pub fn default_workspace_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = agora_dir(app)?.join("workspace");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
 pub fn db_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(agora_dir(app)?.join("agora.db"))
 }

@@ -134,15 +134,18 @@ export function GeneralForm() {
           absolute paths.
         </p>
         <div className="flex items-center gap-2">
-          <div
-            className="flex-1 min-w-0 rounded-xl border-border bg-card px-3 py-2 text-xs text-foreground truncate"
-            style={{ boxShadow: '0 0 0 1px var(--border)' }}
+          <Input
+            value={form.workspaceRoot}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, workspaceRoot: e.target.value }))
+            }
+            placeholder="No workspace selected"
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="off"
+            className="flex-1 min-w-0 h-9 rounded-xl text-xs"
             title={form.workspaceRoot || '(none)'}
-          >
-            {form.workspaceRoot || (
-              <span className="text-muted-foreground">No workspace selected</span>
-            )}
-          </div>
+          />
           <button
             type="button"
             onClick={pickWorkspace}

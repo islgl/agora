@@ -41,6 +41,13 @@ pub fn run() {
             // bad config can't block the app from starting.
             let skills_dir =
                 paths::skills_dir(&handle).expect("failed to resolve ~/.agora/skills");
+            // First-launch default for the built-ins workspace — empty
+            // on a fresh install means "never configured", so apply
+            // `~/.agora/workspace`. Resolved on the main thread so the
+            // AppHandle doesn't have to cross into the spawned task.
+            let default_workspace_str = paths::default_workspace_dir(&handle)
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_default();
 
             {
                 let pool_for_init = pool.clone();
@@ -48,6 +55,7 @@ pub fn run() {
                 let skills_for_init = skill_registry.clone();
                 let builtins_for_init = builtins_runtime.clone();
                 let skills_dir_str = skills_dir.to_string_lossy().into_owned();
+                let default_workspace_for_init = default_workspace_str.clone();
                 tauri::async_runtime::spawn(async move {
                     if let Ok(rows) = sqlx::query_as::<_, commands::mcp::McpServerRow>(
                         "SELECT id, name, transport, command, args_json, env_json, url, \
@@ -73,16 +81,52 @@ pub fn run() {
 
                     // Prime the built-ins runtime with the persisted workspace
                     // root so FS/Bash tools have scope from the first call.
+                    // On the very first launch (DB default = empty, no
+                    // `workspace_default_applied` flag), persist
+                    // `~/.agora/workspace` as the default so users get a
+                    // working FS/Bash scope without configuring one first.
+                    // If the user later clears the path, the flag prevents
+                    // us from silently reapplying the default next boot.
                     let ws: String = sqlx::query_scalar(
                         "SELECT workspace_root FROM global_settings WHERE id = 1",
                     )
                     .fetch_one(&pool_for_init)
                     .await
                     .unwrap_or_default();
-                    let ws_trimmed = ws.trim();
-                    if !ws_trimmed.is_empty() {
+                    let ws_trimmed = ws.trim().to_string();
+
+                    let default_applied: Option<String> = sqlx::query_scalar(
+                        "SELECT value FROM meta_flags WHERE key = 'workspace_default_applied'",
+                    )
+                    .fetch_optional(&pool_for_init)
+                    .await
+                    .ok()
+                    .flatten();
+
+                    let effective = if ws_trimmed.is_empty()
+                        && default_applied.is_none()
+                        && !default_workspace_for_init.is_empty()
+                    {
+                        let _ = sqlx::query(
+                            "UPDATE global_settings SET workspace_root = ? WHERE id = 1",
+                        )
+                        .bind(&default_workspace_for_init)
+                        .execute(&pool_for_init)
+                        .await;
+                        let _ = sqlx::query(
+                            "INSERT OR REPLACE INTO meta_flags (key, value) \
+                             VALUES ('workspace_default_applied', '1')",
+                        )
+                        .execute(&pool_for_init)
+                        .await;
+                        default_workspace_for_init
+                    } else {
+                        ws_trimmed
+                    };
+
+                    if !effective.is_empty() {
                         builtins_for_init
-                            .set_workspace_root(Some(std::path::PathBuf::from(ws_trimmed)))
+                            .set_workspace_root(Some(std::path::PathBuf::from(&effective)))
                             .await;
                     }
                 });
