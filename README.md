@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/logo-dark.png">
-    <img src="./docs/assets/logo-light.png" width="120" alt="Agora">
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-dark.png">
+    <img src="./assets/logo-light.png" width="120" alt="Agora">
   </picture>
 </p>
 
@@ -65,17 +65,6 @@ Data layout:
 ├── skills/           # Skill packs
 └── workspace/        # Default workspace root for FS/Bash tools
 ```
-
-## Documentation
-
-Design notes and internal docs live under [`docs/`](./docs):
-
-- [`DESIGN.md`](./docs/DESIGN.md) — visual system & product direction
-- [`TOOLS.md`](./docs/TOOLS.md) — the nine built-in tools
-- [`AGENT_ROADMAP.md`](./docs/AGENT_ROADMAP.md) — where the agent story is headed
-- [`TODO.md`](./docs/TODO.md) — candidate features
-
-See [`CHANGELOG.md`](./CHANGELOG.md) for release history.
 
 ## License
 

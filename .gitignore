@@ -34,3 +34,6 @@ src-tauri/gen/
 
 # Claude Code — commit shared config/hooks, ignore personal overrides
 .claude/settings.local.json
+
+# Internal/design docs stay local only
+docs/
