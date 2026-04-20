@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSettingsStore } from '@/store/settingsStore';
-import { ProviderIcon } from './ProviderIcon';
+import { ProviderIcon, PROVIDER_ORDER } from './ProviderIcon';
 import type { ModelConfig, Provider } from '@/types';
 
 interface ModelFormProps {
@@ -30,13 +30,16 @@ const PROVIDER_PRESETS: Record<Provider, ProviderPreset> = {
     namePlaceholder: 'Claude Sonnet',
   },
   gemini: {
-    label: 'Gemini',
+    label: 'Google',
     modelPlaceholder: 'gemini-2.0-flash',
     namePlaceholder: 'Gemini Flash',
   },
 };
 
-const PROVIDERS: Provider[] = ['openai', 'anthropic', 'gemini'];
+// Reuse the single source of truth for provider order (also used by
+// ModelList when grouping existing models). Order: Anthropic, OpenAI,
+// Google.
+const PROVIDERS: readonly Provider[] = PROVIDER_ORDER;
 
 const INPUT_CLASS =
   'rounded-xl border-border bg-card text-foreground ' +

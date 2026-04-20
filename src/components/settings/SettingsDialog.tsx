@@ -1,5 +1,6 @@
 import {
   Bot,
+  BrainCircuit,
   KeyRound,
   Settings as SettingsIcon,
   ShieldCheck,
@@ -14,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { McpIcon } from '@/components/icons/McpIcon';
-import { ModelList } from './ModelList';
+import { ModelsPage } from './ModelsPage';
 import { ProvidersForm } from './ProvidersForm';
 import { CapabilitiesForm } from './CapabilitiesForm';
 import { GeneralForm } from './GeneralForm';
@@ -22,6 +23,7 @@ import { McpServersList } from './McpServersList';
 import { HooksForm } from './HooksForm';
 import { PermissionsForm } from './PermissionsForm';
 import { SkillsList } from './SkillsList';
+import { MemoryForm } from './MemoryForm';
 
 const TAB_TRIGGER_CLASS =
   '!flex-none !h-auto w-full rounded-lg px-3 py-2 text-muted-foreground ' +
@@ -77,6 +79,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 <Sparkles className="size-4 shrink-0" />
                 Capabilities
               </TabsTrigger>
+              <TabsTrigger value="memory" className={TAB_TRIGGER_CLASS}>
+                <BrainCircuit className="size-4 shrink-0" />
+                Memory
+              </TabsTrigger>
               <TabsTrigger value="mcp" className={TAB_TRIGGER_CLASS}>
                 <McpIcon className="size-4 shrink-0" />
                 MCP
@@ -107,7 +113,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               value="models"
               className="flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-6"
             >
-              <ModelList />
+              <ModelsPage />
             </TabsContent>
             <TabsContent
               value="providers"
@@ -120,6 +126,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               className="flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-6"
             >
               <CapabilitiesForm />
+            </TabsContent>
+            <TabsContent
+              value="memory"
+              className="flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-6"
+            >
+              <MemoryForm />
             </TabsContent>
             <TabsContent
               value="mcp"

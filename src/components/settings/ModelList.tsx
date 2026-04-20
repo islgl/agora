@@ -17,7 +17,6 @@ import {
   PROVIDER_DISPLAY_LABEL,
   PROVIDER_ORDER,
 } from './ProviderIcon';
-import { SettingsPage } from './SettingsPage';
 import type { ModelConfig } from '@/types';
 
 type TestOutcome = { ok: true; message: string } | { ok: false; error: string };
@@ -106,11 +105,9 @@ export function ModelList() {
   const anyTesting = testing.size > 0 || testingAll;
 
   return (
-    <SettingsPage
-      title="Models"
-      description="Named model configs the agent can chat as. Each config inherits provider + API key from the Providers tab; add one per model name you want to expose in the picker."
-      actions={
-        modelConfigs.length > 0 ? (
+    <div className="space-y-6">
+      {modelConfigs.length > 0 && (
+        <div className="flex justify-end">
           <button
             onClick={() => void handleTestAll()}
             disabled={anyTesting}
@@ -126,10 +123,8 @@ export function ModelList() {
             )}
             {testingAll ? 'Testing all…' : 'Test all'}
           </button>
-        ) : undefined
-      }
-    >
-      <div className="space-y-6">
+        </div>
+      )}
       {groups.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-6">
           No models configured. Add one to start chatting.
@@ -234,7 +229,6 @@ export function ModelList() {
         <Plus className="size-3.5" />
         Add model
       </button>
-      </div>
-    </SettingsPage>
+    </div>
   );
 }

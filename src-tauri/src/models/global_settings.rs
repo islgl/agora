@@ -41,12 +41,30 @@ pub struct GlobalSettings {
     /// falling back to the first config in the list. Empty = never set.
     #[serde(default)]
     pub active_model_id: String,
-    /// Embedding provider for auto-memory recall. `openai` | `gemini`.
+    /// Embedding provider of the *active* embedding config. Kept alongside
+    /// `embedding_configs_json` so existing Rust code + older callers that
+    /// only read these two fields still work. Always mirrors the active
+    /// entry in the JSON blob when the frontend writes it.
     #[serde(default = "default_embedding_provider")]
     pub embedding_provider: String,
-    /// Embedding model id (e.g. `text-embedding-3-small`).
+    /// Embedding model id of the active embedding config (e.g.
+    /// `text-embedding-3-small`). Kept in sync with the active entry in
+    /// `embedding_configs_json`.
     #[serde(default = "default_embedding_model")]
     pub embedding_model: String,
+    /// JSON blob owning the embedding-config list + active id. Shape:
+    /// `{"configs":[{"id","name","provider","model"}],"activeId":"…"}`.
+    /// Frontend owns the schema; Rust treats this as opaque text. Seeded
+    /// lazily by the frontend from the legacy `embedding_provider` /
+    /// `embedding_model` fields on first load.
+    #[serde(default = "default_embedding_configs_json")]
+    pub embedding_configs_json: String,
+    /// Shared endpoint for all embedding traffic. Empty = fall through to
+    /// the chat `base_url_openai`. Downstream routing inside the gateway
+    /// happens via each embedding config's `providerId` header, not a
+    /// per-provider URL override.
+    #[serde(default)]
+    pub base_url_embedding_common: String,
     /// When true, the post-turn memory extractor runs.
     #[serde(default = "default_true")]
     pub auto_memory_enabled: bool,
@@ -58,6 +76,10 @@ fn default_embedding_provider() -> String {
 
 fn default_embedding_model() -> String {
     "text-embedding-3-small".to_string()
+}
+
+fn default_embedding_configs_json() -> String {
+    "{}".to_string()
 }
 
 fn default_true() -> bool {

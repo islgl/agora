@@ -181,6 +181,15 @@ const MIGRATIONS: &[&str] = &[
     "ALTER TABLE global_settings ADD COLUMN embedding_provider TEXT NOT NULL DEFAULT 'openai'",
     "ALTER TABLE global_settings ADD COLUMN embedding_model TEXT NOT NULL DEFAULT 'text-embedding-3-small'",
     "ALTER TABLE global_settings ADD COLUMN auto_memory_enabled INTEGER NOT NULL DEFAULT 1",
+    // Memory tab · embedding-config list stored as JSON on global_settings.
+    // Frontend owns the schema; '{}' means "not yet seeded" (the store
+    // migrates legacy embedding_provider/embedding_model on next load).
+    "ALTER TABLE global_settings ADD COLUMN embedding_configs_json TEXT NOT NULL DEFAULT '{}'",
+    // Providers tab · dedicated embedding endpoints. A shared "common"
+    // URL acts as default; per-provider columns override. Both empty =
+    // fall back to the chat `base_url_*` field of the same provider.
+    "ALTER TABLE global_settings ADD COLUMN base_url_embedding_common TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE global_settings ADD COLUMN base_url_embedding_openai TEXT NOT NULL DEFAULT ''",
 ];
 
 /// One-shot backfills. Keyed by a flag in `meta_flags`; skipped once done.

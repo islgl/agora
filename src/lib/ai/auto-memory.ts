@@ -1,6 +1,5 @@
 import { embed, generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { invoke } from '@tauri-apps/api/core';
 import type { Message, ModelConfig } from '@/types';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -210,39 +209,45 @@ export async function embedText(text: string): Promise<number[] | null> {
   if (!text.trim()) return null;
   const settings = useSettingsStore.getState();
   const g = settings.globalSettings;
-  const provider = g.embeddingProvider || 'openai';
-  const modelName = g.embeddingModel || 'text-embedding-3-small';
+  // Prefer the active embedding config from the list, but fall back to the
+  // legacy `embeddingModel` field so this keeps working during first-load
+  // before the settingsStore has seeded the list.
+  const active =
+    settings.embeddingConfigs.find((c) => c.id === settings.activeEmbeddingId) ??
+    settings.embeddingConfigs[0];
+  const modelName = active?.model ?? g.embeddingModel ?? 'text-embedding-3-small';
+  // Common embedding URL → chat-side OpenAI URL. Gateway routing within
+  // a shared base URL is handled via the per-config `providerId` header,
+  // not a per-provider URL override.
+  const resolvedBaseUrl = g.baseUrlEmbeddingCommon.trim() || g.baseUrlOpenai;
+
+  // Base headers every request carries: a provider hint so the Rust proxy
+  // knows where to inject the shared API key when the custom baseURL
+  // doesn't prefix-match any configured provider. If the active config
+  // defines a gateway provider id, tack it on as X-Model-Provider-Id so
+  // the upstream gateway routes to the right backend model.
+  const headers: Record<string, string> = {
+    'x-agora-provider-hint': 'openai',
+  };
+  const gatewayProviderId = (active?.providerId ?? '').trim();
+  if (gatewayProviderId) {
+    headers['X-Model-Provider-Id'] = gatewayProviderId;
+  }
 
   try {
-    if (provider === 'openai') {
-      const client = createOpenAI({
-        apiKey: 'proxied-by-tauri',
-        baseURL: g.baseUrlOpenai.replace(/\/+$/, ''),
-        fetch: tauriProxyFetch,
-      });
-      const res = await embed({
-        model: client.textEmbeddingModel(modelName),
-        value: text.slice(0, 8000),
-      });
-      return Array.from(res.embedding);
-    }
-    if (provider === 'gemini') {
-      const client = createGoogleGenerativeAI({
-        apiKey: 'proxied-by-tauri',
-        baseURL: `${g.baseUrlGemini.replace(/\/+$/, '')}/v1beta`,
-        fetch: tauriProxyFetch,
-      });
-      const res = await embed({
-        model: client.textEmbeddingModel(modelName),
-        value: text.slice(0, 8000),
-      });
-      return Array.from(res.embedding);
-    }
-    // Other providers don't have a native embedding surface in the AI SDK;
-    // silently skip rather than breaking the chat loop.
-    return null;
+    const client = createOpenAI({
+      apiKey: 'proxied-by-tauri',
+      baseURL: resolvedBaseUrl.replace(/\/+$/, ''),
+      headers,
+      fetch: tauriProxyFetch,
+    });
+    const res = await embed({
+      model: client.textEmbeddingModel(modelName),
+      value: text.slice(0, 8000),
+    });
+    return Array.from(res.embedding);
   } catch (err) {
-    console.warn(`embedText(${provider}/${modelName}) failed`, err);
+    console.warn(`embedText(openai/${modelName}) failed`, err);
     return null;
   }
 }

@@ -42,7 +42,8 @@ export function ProvidersForm() {
     form.apiKey !== globalSettings.apiKey ||
     form.baseUrlOpenai !== globalSettings.baseUrlOpenai ||
     form.baseUrlAnthropic !== globalSettings.baseUrlAnthropic ||
-    form.baseUrlGemini !== globalSettings.baseUrlGemini;
+    form.baseUrlGemini !== globalSettings.baseUrlGemini ||
+    form.baseUrlEmbeddingCommon !== globalSettings.baseUrlEmbeddingCommon;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +78,7 @@ export function ProvidersForm() {
         </SettingsSection>
 
         <SettingsSection
-          title="Base URLs"
+          title="Chat base URLs"
           description="Official endpoints by default. Swap in a proxy / gateway URL per provider as needed."
         >
           <div className="space-y-2">
@@ -103,6 +104,27 @@ export function ProvidersForm() {
               );
             })}
           </div>
+        </SettingsSection>
+
+        <SettingsSection
+          title="Embedding base URL"
+          description="Endpoint for every embedding request. Leave blank to reuse the Chat → OpenAI URL. Route to different backends by setting a Gateway Provider ID per embedding model (Models → Embedding)."
+        >
+          <Input
+            type="text"
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="off"
+            placeholder={form.baseUrlOpenai || 'Inherits from Chat → OpenAI'}
+            className={INPUT_CLASS}
+            value={form.baseUrlEmbeddingCommon}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                baseUrlEmbeddingCommon: e.target.value,
+              }))
+            }
+          />
         </SettingsSection>
 
         <div className="flex justify-end pt-1">

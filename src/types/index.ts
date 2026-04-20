@@ -85,6 +85,24 @@ export interface ModelConfig {
   model: string;
 }
 
+/** Embedding provider for auto-memory. Only OpenAI is wired up — Anthropic
+ *  has no native embeddings API, and Gemini was dropped since we don't have
+ *  access to it. */
+export type EmbeddingProvider = 'openai';
+
+export interface EmbeddingConfig {
+  id: string;
+  name: string;
+  provider: EmbeddingProvider;
+  model: string;
+  /** Gateway-level routing id injected as the `X-Model-Provider-Id`
+   *  header on every outbound request. Matches the enterprise-gateway
+   *  pattern where `/v1/embeddings` is OpenAI-compatible but the
+   *  downstream provider (e.g. `tongyi`, `qwen`, `openai`) is selected
+   *  via a header. Empty = don't inject the header. */
+  providerId: string;
+}
+
 export type AutoTitleMode = 'off' | 'first' | 'every';
 export type ThinkingEffort = 'off' | 'low' | 'medium' | 'high' | 'max';
 
@@ -112,10 +130,23 @@ export interface GlobalSettings {
    *  the user has picked one; loadModelConfigs still falls back to
    *  configs[0] if this points at a deleted model. */
   activeModelId: string;
-  /** Embedding provider for auto-memory vector recall. `openai` or `gemini`. */
+  /** Provider of the *active* embedding config. Kept in sync with the
+   *  active entry in `embeddingConfigsJson` so older code paths that read
+   *  only these two fields keep working. */
   embeddingProvider: string;
-  /** Embedding model id (e.g. `text-embedding-3-small`). */
+  /** Model id of the active embedding config (e.g.
+   *  `text-embedding-3-small`). */
   embeddingModel: string;
+  /** JSON blob owning the embedding-config list + active id. Shape:
+   *  `{"configs":EmbeddingConfig[],"activeId":string}`. Default `"{}"` means
+   *  "not yet seeded" — the store migrates the legacy single-config fields
+   *  into a first entry on load. */
+  embeddingConfigsJson: string;
+  /** Shared endpoint for all embedding traffic (set in Providers tab).
+   *  Empty = fall back to the chat-side `baseUrlOpenai`. Routing within
+   *  the gateway happens through each embedding-config's `providerId`
+   *  header, so we don't need a per-provider URL override. */
+  baseUrlEmbeddingCommon: string;
   /** When true, the post-turn extractor runs and persists candidates.
    *  When false, the store is read-only — only explicit `remember` calls
    *  mutate it. Recall still happens either way. */

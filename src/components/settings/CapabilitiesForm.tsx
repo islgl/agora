@@ -24,11 +24,6 @@ const THINKING_OPTIONS: {
   },
 ];
 
-const EMBEDDING_PROVIDER_OPTIONS = [
-  { value: 'openai', label: 'OpenAI', defaultModel: 'text-embedding-3-small' },
-  { value: 'gemini', label: 'Gemini', defaultModel: 'text-embedding-004' },
-] as const;
-
 const INPUT_CLASS =
   'rounded-xl border-border bg-card text-foreground ' +
   'focus-visible:border-ring focus-visible:ring-0 ' +
@@ -46,10 +41,7 @@ export function CapabilitiesForm() {
   const dirty =
     form.webSearchEnabled !== globalSettings.webSearchEnabled ||
     form.tavilyApiKey !== globalSettings.tavilyApiKey ||
-    form.thinkingEffort !== globalSettings.thinkingEffort ||
-    form.autoMemoryEnabled !== globalSettings.autoMemoryEnabled ||
-    form.embeddingProvider !== globalSettings.embeddingProvider ||
-    form.embeddingModel !== globalSettings.embeddingModel;
+    form.thinkingEffort !== globalSettings.thinkingEffort;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +60,7 @@ export function CapabilitiesForm() {
     <form onSubmit={handleSubmit}>
       <SettingsPage
         title="Capabilities"
-        description="Feature toggles that change what the agent can do — web access, extended reasoning budgets, automatic memory extraction."
+        description="Feature toggles that change what the agent can do — web access and extended reasoning budgets. Memory lives in its own tab."
       >
         <SettingsSection
           title="Web search"
@@ -149,83 +141,6 @@ export function CapabilitiesForm() {
           <p className="text-[11px] text-muted-foreground">
             {THINKING_OPTIONS.find((o) => o.value === form.thinkingEffort)?.hint}
           </p>
-        </SettingsSection>
-
-        <SettingsSection
-          title="Auto memory"
-          description="After each turn, a lightweight model pass extracts 0–3 durable facts and stores them in a local vector index. Disable to keep only the memories you explicitly ask Agora to remember."
-        >
-          <div
-            className="flex items-start gap-3 p-3 rounded-xl bg-card"
-            style={{ boxShadow: '0 0 0 1px var(--border)' }}
-          >
-            <div className="space-y-0.5 flex-1 min-w-0">
-              <div className="text-sm text-foreground">
-                Enable auto-extraction
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Runs in the background per turn. Recall at turn start keeps
-                working either way — disabling only stops new writes.
-              </div>
-            </div>
-            <Toggle
-              checked={form.autoMemoryEnabled}
-              onCheckedChange={(checked) =>
-                setForm((f) => ({ ...f, autoMemoryEnabled: checked }))
-              }
-              className="mt-0.5"
-            />
-          </div>
-
-          <SettingsSubsection
-            title="Embedding model"
-            description="Used for both the extractor and Top-K recall. Ask Agora in chat to audit or prune specific entries — there is no Memory tab."
-          >
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">
-                  Provider
-                </Label>
-                <select
-                  value={form.embeddingProvider}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    const opt = EMBEDDING_PROVIDER_OPTIONS.find(
-                      (o) => o.value === next,
-                    );
-                    setForm((f) => ({
-                      ...f,
-                      embeddingProvider: next,
-                      embeddingModel: opt?.defaultModel ?? f.embeddingModel,
-                    }));
-                  }}
-                  className="w-full h-9 rounded-xl px-2 text-xs bg-card"
-                  style={{ boxShadow: '0 0 0 1px var(--border)' }}
-                >
-                  {EMBEDDING_PROVIDER_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">
-                  Model
-                </Label>
-                <input
-                  type="text"
-                  value={form.embeddingModel}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, embeddingModel: e.target.value }))
-                  }
-                  spellCheck={false}
-                  className="w-full h-9 rounded-xl px-2 text-xs bg-card"
-                  style={{ boxShadow: '0 0 0 1px var(--border)' }}
-                />
-              </div>
-            </div>
-          </SettingsSubsection>
         </SettingsSection>
 
         <div className="flex justify-end pt-1">

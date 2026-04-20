@@ -23,6 +23,12 @@ use crate::db::DbPool;
 
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 
+/// Optional header set by callers (currently `embedText`) when the
+/// outbound URL doesn't prefix-match any of the Provider-tab base URLs.
+/// `api_key_for_url` reads it to pick the right auth header family.
+/// Lower-case because we match case-insensitively anyway.
+const PROVIDER_HINT_HEADER: &str = "x-agora-provider-hint";
+
 /// Endpoints we've already seen reject `thinking.type.enabled` with the
 /// Bedrock "use adaptive" 400. Keyed by request URL; once an endpoint is
 /// in this set we rewrite the body pre-emptively on every subsequent
@@ -92,7 +98,19 @@ pub async fn proxy_ai_request(
             .map_err(|e| format!("invalid body base64: {}", e))?
     };
 
-    let (api_key, provider_headers) = api_key_for_url(&pool, &request.url).await?;
+    // Pull an optional provider hint from the request headers before routing.
+    // Callers (currently the embeddings path) set it when their custom base
+    // URL doesn't prefix-match any of the Provider-tab URLs so the right
+    // API key still gets injected. The header itself is stripped from the
+    // upstream request below.
+    let provider_hint = request
+        .headers
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case(PROVIDER_HINT_HEADER))
+        .map(|(_, v)| v.as_str().to_string());
+
+    let (api_key, provider_headers) =
+        api_key_for_url(&pool, &request.url, provider_hint.as_deref()).await?;
 
     let client = reqwest::Client::new();
     let method = match request.method.to_uppercase().as_str() {
@@ -119,6 +137,7 @@ pub async fn proxy_ai_request(
             if k_lower == "authorization"
                 || k_lower == "x-api-key"
                 || k_lower == "x-goog-api-key"
+                || k_lower == PROVIDER_HINT_HEADER
             {
                 continue;
             }
@@ -316,6 +335,7 @@ fn rewrite_thinking_adaptive(body: &[u8]) -> Option<Vec<u8>> {
 async fn api_key_for_url(
     pool: &DbPool,
     url: &str,
+    provider_hint: Option<&str>,
 ) -> Result<(Option<String>, HashMap<String, String>), String> {
     #[derive(sqlx::FromRow)]
     struct Settings {
@@ -323,10 +343,12 @@ async fn api_key_for_url(
         base_url_openai: String,
         base_url_anthropic: String,
         base_url_gemini: String,
+        base_url_embedding_common: String,
     }
 
     let s: Settings = sqlx::query_as(
-        "SELECT api_key, base_url_openai, base_url_anthropic, base_url_gemini \
+        "SELECT api_key, base_url_openai, base_url_anthropic, base_url_gemini, \
+                base_url_embedding_common \
          FROM global_settings WHERE id = 1",
     )
     .fetch_one(pool)
@@ -342,6 +364,16 @@ async fn api_key_for_url(
         }
         url.starts_with(trimmed)
     };
+
+    // Embedding URL takes precedence — if the user has a dedicated
+    // embedding endpoint configured, route auth to OpenAI (the only
+    // embedding provider today) before falling through to the chat URLs.
+    if matches_prefix(&s.base_url_embedding_common) {
+        if !s.api_key.is_empty() {
+            headers.insert("authorization".into(), format!("Bearer {}", s.api_key));
+        }
+        return Ok((Some(s.api_key), headers));
+    }
 
     if matches_prefix(&s.base_url_anthropic) {
         if !s.api_key.is_empty() {
@@ -363,7 +395,36 @@ async fn api_key_for_url(
         return Ok((Some(s.api_key), headers));
     }
 
-    // No match — don't inject anything. The SDK may be hitting a custom
-    // endpoint the user configured; we forward verbatim.
+    // URL didn't match any configured provider. Fall back to the explicit
+    // provider hint (set by e.g. the embeddings path when pointing at a
+    // custom endpoint) so the shared API key still lands in the right
+    // auth header.
+    if let Some(hint) = provider_hint {
+        match hint.to_ascii_lowercase().as_str() {
+            "anthropic" => {
+                if !s.api_key.is_empty() {
+                    headers.insert("x-api-key".into(), s.api_key.clone());
+                }
+                headers.insert("anthropic-version".into(), ANTHROPIC_VERSION.into());
+                return Ok((Some(s.api_key), headers));
+            }
+            "openai" => {
+                if !s.api_key.is_empty() {
+                    headers.insert("authorization".into(), format!("Bearer {}", s.api_key));
+                }
+                return Ok((Some(s.api_key), headers));
+            }
+            "gemini" | "google" => {
+                if !s.api_key.is_empty() {
+                    headers.insert("x-goog-api-key".into(), s.api_key.clone());
+                }
+                return Ok((Some(s.api_key), headers));
+            }
+            _ => {}
+        }
+    }
+
+    // No match and no hint — forward verbatim. The SDK may be hitting a
+    // custom endpoint the user configured to handle its own auth.
     Ok((None, headers))
 }

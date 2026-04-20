@@ -12,7 +12,9 @@ pub async fn load_global_settings(pool: State<'_, DbPool>) -> Result<GlobalSetti
         "SELECT api_key, base_url_openai, base_url_anthropic, base_url_gemini, tavily_api_key, \
                 web_search_enabled, auto_title_mode, thinking_effort, \
                 workspace_root, auto_approve_readonly, hooks_json, active_model_id, \
-                embedding_provider, embedding_model, auto_memory_enabled \
+                embedding_provider, embedding_model, embedding_configs_json, \
+                base_url_embedding_common, \
+                auto_memory_enabled \
          FROM global_settings WHERE id = 1",
     )
     .fetch_one(&*pool)
@@ -32,7 +34,9 @@ pub async fn save_global_settings(
              tavily_api_key = ?, web_search_enabled = ?, auto_title_mode = ?, \
              thinking_effort = ?, workspace_root = ?, auto_approve_readonly = ?, \
              hooks_json = ?, active_model_id = ?, \
-             embedding_provider = ?, embedding_model = ?, auto_memory_enabled = ? \
+             embedding_provider = ?, embedding_model = ?, embedding_configs_json = ?, \
+             base_url_embedding_common = ?, \
+             auto_memory_enabled = ? \
          WHERE id = 1",
     )
     .bind(&settings.api_key)
@@ -49,6 +53,8 @@ pub async fn save_global_settings(
     .bind(&settings.active_model_id)
     .bind(&settings.embedding_provider)
     .bind(&settings.embedding_model)
+    .bind(&settings.embedding_configs_json)
+    .bind(&settings.base_url_embedding_common)
     .bind(settings.auto_memory_enabled)
     .execute(&*pool)
     .await
