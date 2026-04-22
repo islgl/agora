@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **API key input never shows plaintext** — `MaskedKeyInput` now uses `type="password"` when focused, so the value is dot-masked live as the user types/pastes instead of revealing the raw string. Blurred state is unchanged (fixed 15-dot preview).
 - **Menubar panel anchors to the tray icon** — the quick panel's `y` now rides off the tray rect (`pos.y + size.height + 2px`) instead of the work-area top, so it sits directly under the icon at the top edge of the menu bar. Falls back to `work_area + 2px` when the tray rect isn't reported yet.
 - **Binary is named `Agora`** — explicit `[[bin]]` in `src-tauri/Cargo.toml` so the compiled binary matches the bundle display name instead of inheriting the underscore-cased crate name.
+- **Menubar panel slimmed to 3 entries** — the quick panel drops the header tagline, the Double-Option toggle card, and the "Esc to close / Quit Agora" footer. What remains is a small "Quick entry" eyebrow + `Agora` serif title above three action cards (New conversation / Open Agora / Settings) with generous padding and a `cursor-pointer` on each card. Panel height tightens from 430 to 400. The Double-Option toggle still lives under Settings → General, and Esc/focus-out still dismisses the panel — they just aren't advertised in the tray anymore.
 
 ### Removed
 
