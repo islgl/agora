@@ -29,6 +29,7 @@ const EMPTY_GLOBAL_SETTINGS: GlobalSettings = {
   baseUrlEmbeddingCommon: '',
   autoMemoryEnabled: true,
   quickLaunchEnabled: true,
+  closeToTrayEnabled: true,
 };
 
 const EMBEDDING_PROVIDERS: readonly EmbeddingProvider[] = ['openai'];

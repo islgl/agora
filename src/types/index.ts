@@ -154,6 +154,9 @@ export interface GlobalSettings {
   /** When true, pressing Option twice should surface Agora and start a
    *  fresh conversation from the background. */
   quickLaunchEnabled: boolean;
+  /** When true, closing the main window hides it to the tray instead of
+   *  letting the default close behaviour quit the app. */
+  closeToTrayEnabled: boolean;
 }
 
 export interface BackgroundStatus {

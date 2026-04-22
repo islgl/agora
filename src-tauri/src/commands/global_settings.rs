@@ -14,7 +14,7 @@ pub async fn load_global_settings(pool: State<'_, DbPool>) -> Result<GlobalSetti
                 workspace_root, auto_approve_readonly, hooks_json, active_model_id, \
                 embedding_provider, embedding_model, embedding_configs_json, \
                 base_url_embedding_common, \
-                auto_memory_enabled, quick_launch_enabled \
+                auto_memory_enabled, quick_launch_enabled, close_to_tray_enabled \
          FROM global_settings WHERE id = 1",
     )
     .fetch_one(&*pool)
@@ -38,7 +38,8 @@ pub async fn save_global_settings(
              embedding_provider = ?, embedding_model = ?, embedding_configs_json = ?, \
              base_url_embedding_common = ?, \
              auto_memory_enabled = ?, \
-             quick_launch_enabled = ? \
+             quick_launch_enabled = ?, \
+             close_to_tray_enabled = ? \
          WHERE id = 1",
     )
     .bind(&settings.api_key)
@@ -59,6 +60,7 @@ pub async fn save_global_settings(
     .bind(&settings.base_url_embedding_common)
     .bind(settings.auto_memory_enabled)
     .bind(settings.quick_launch_enabled)
+    .bind(settings.close_to_tray_enabled)
     .execute(&*pool)
     .await
     .map_err(|e| e.to_string())?;

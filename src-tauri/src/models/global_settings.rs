@@ -72,6 +72,10 @@ pub struct GlobalSettings {
     /// start a fresh conversation in the background.
     #[serde(default = "default_true")]
     pub quick_launch_enabled: bool,
+    /// When true, closing the main window hides it to the tray instead of
+    /// quitting the app. False lets the default close behaviour run.
+    #[serde(default = "default_true")]
+    pub close_to_tray_enabled: bool,
 }
 
 fn default_embedding_provider() -> String {

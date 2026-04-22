@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS global_settings (
     auto_compact_threshold INTEGER NOT NULL DEFAULT 80,
     hooks_json             TEXT NOT NULL DEFAULT '{}',
     active_model_id        TEXT NOT NULL DEFAULT '',
-    quick_launch_enabled   INTEGER NOT NULL DEFAULT 1
+    quick_launch_enabled   INTEGER NOT NULL DEFAULT 1,
+    close_to_tray_enabled  INTEGER NOT NULL DEFAULT 1
 );
 
 INSERT OR IGNORE INTO global_settings (id) VALUES (1);
@@ -192,6 +193,7 @@ const MIGRATIONS: &[&str] = &[
     "ALTER TABLE global_settings ADD COLUMN base_url_embedding_common TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE global_settings ADD COLUMN base_url_embedding_openai TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE global_settings ADD COLUMN quick_launch_enabled INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE global_settings ADD COLUMN close_to_tray_enabled INTEGER NOT NULL DEFAULT 1",
 ];
 
 /// One-shot backfills. Keyed by a flag in `meta_flags`; skipped once done.

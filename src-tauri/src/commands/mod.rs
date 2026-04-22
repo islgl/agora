@@ -1,5 +1,6 @@
 pub mod agent_md;
 pub mod ai_proxy;
+pub mod background;
 pub mod brand_loader;
 pub mod daily_log;
 pub mod memory_active;

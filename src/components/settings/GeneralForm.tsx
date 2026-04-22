@@ -40,7 +40,8 @@ export function GeneralForm() {
     form.autoTitleMode !== globalSettings.autoTitleMode ||
     form.workspaceRoot !== globalSettings.workspaceRoot ||
     form.autoApproveReadonly !== globalSettings.autoApproveReadonly ||
-    form.quickLaunchEnabled !== globalSettings.quickLaunchEnabled;
+    form.quickLaunchEnabled !== globalSettings.quickLaunchEnabled ||
+    form.closeToTrayEnabled !== globalSettings.closeToTrayEnabled;
 
   const pickWorkspace = async () => {
     try {
@@ -182,6 +183,27 @@ export function GeneralForm() {
               checked={form.quickLaunchEnabled}
               onCheckedChange={(checked) =>
                 setForm((f) => ({ ...f, quickLaunchEnabled: checked }))
+              }
+              className="mt-0.5"
+            />
+          </div>
+
+          <div
+            className="flex items-start gap-3 p-3 rounded-xl bg-card mt-2"
+            style={{ boxShadow: '0 0 0 1px var(--border)' }}
+          >
+            <div className="space-y-0.5 flex-1 min-w-0">
+              <div className="text-sm text-foreground">Minimize to tray on close</div>
+              <div className="text-xs text-muted-foreground">
+                Closing the main window hides Agora to the menu bar instead of
+                quitting. Reopen from the tray icon or Double Option. Turn off
+                to quit the app completely when closing.
+              </div>
+            </div>
+            <Toggle
+              checked={form.closeToTrayEnabled}
+              onCheckedChange={(checked) =>
+                setForm((f) => ({ ...f, closeToTrayEnabled: checked }))
               }
               className="mt-0.5"
             />

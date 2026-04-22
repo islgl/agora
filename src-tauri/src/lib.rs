@@ -181,7 +181,8 @@ pub fn run() {
                         web_search_enabled, auto_title_mode, thinking_effort, \
                         workspace_root, auto_approve_readonly, hooks_json, active_model_id, \
                         embedding_provider, embedding_model, embedding_configs_json, \
-                        base_url_embedding_common, auto_memory_enabled, quick_launch_enabled \
+                        base_url_embedding_common, auto_memory_enabled, quick_launch_enabled, \
+                        close_to_tray_enabled \
                  FROM global_settings WHERE id = 1",
             )
             .fetch_one(&pool))

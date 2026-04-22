@@ -24,7 +24,7 @@ const QUICK_LAUNCH_UNSUPPORTED_MESSAGE: &str =
     "Double Option quick launch is currently available on macOS only.";
 
 const PANEL_WIDTH: f64 = 372.0;
-const PANEL_MARGIN_TOP: f64 = 10.0;
+const PANEL_MARGIN_TOP: f64 = 2.0;
 const PANEL_MARGIN_RIGHT: f64 = 14.0;
 const PANEL_EDGE_OFFSET: f64 = 6.0;
 const LAUNCHER_WIDTH: f64 = 620.0;
@@ -65,6 +65,7 @@ struct BackgroundStateInner {
     #[cfg(target_os = "macos")]
     click_outside_monitor: Option<macos::ClickOutsideMonitor>,
     status: BackgroundStatus,
+    close_to_tray_enabled: bool,
 }
 
 pub struct BackgroundManager {
@@ -84,6 +85,7 @@ impl BackgroundManager {
                 #[cfg(target_os = "macos")]
                 click_outside_monitor: None,
                 status: BackgroundStatus::default(),
+                close_to_tray_enabled: true,
             }),
         })
     }
@@ -139,8 +141,22 @@ impl BackgroundManager {
             self.emit_status(app, status);
         }
         self.set_quick_launch_enabled(app, settings.quick_launch_enabled);
+        self.set_close_to_tray_enabled(settings.close_to_tray_enabled);
         #[cfg(target_os = "macos")]
         self.ensure_click_outside_monitor(app);
+    }
+
+    fn set_close_to_tray_enabled(&self, enabled: bool) {
+        if let Ok(mut inner) = self.inner.lock() {
+            inner.close_to_tray_enabled = enabled;
+        }
+    }
+
+    pub fn close_to_tray_enabled(&self) -> bool {
+        self.inner
+            .lock()
+            .map(|inner| inner.close_to_tray_enabled)
+            .unwrap_or(true)
     }
 
     #[cfg(target_os = "macos")]
@@ -262,6 +278,30 @@ impl BackgroundManager {
 }
 
 pub fn handle_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
+    // Handle main-window close based on user preference. Tray keeps the
+    // process alive otherwise, so an explicit `app.exit(0)` is required
+    // when the user wants a full quit. Other windows (menubar panel,
+    // launcher) follow their default hide/close behaviour.
+    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        if window.label() == "main" {
+            let app = window.app_handle();
+            let enabled = app
+                .try_state::<crate::state::RuntimeHandles>()
+                .map(|handles| handles.background.close_to_tray_enabled())
+                .unwrap_or(true);
+            if enabled {
+                api.prevent_close();
+                if let Some(main) = app.get_webview_window("main") {
+                    let _ = main.hide();
+                }
+            } else {
+                api.prevent_close();
+                app.exit(0);
+            }
+        }
+        return;
+    }
+
     if !matches!(event, tauri::WindowEvent::Focused(true)) {
         return;
     }
@@ -501,15 +541,23 @@ fn position_menubar_panel(app: &AppHandle, window: &WebviewWindow) -> Result<(),
         .try_state::<crate::state::RuntimeHandles>()
         .and_then(|handles| handles.background.tray_rect());
 
-    let x = if let Some(rect) = tray_rect {
+    // Prefer the tray icon's own rect for both axes: it's already below
+    // the menubar and horizontally under the icon. Falls back to
+    // `work_area` when the tray hasn't reported its position yet.
+    let (x, y) = if let Some(rect) = tray_rect {
         let pos = rect.position.to_logical::<f64>(scale);
+        let size = rect.size.to_logical::<f64>(scale);
         let min_x = work_x + PANEL_MARGIN_RIGHT;
         let max_x = work_x + work_width - PANEL_WIDTH - PANEL_MARGIN_RIGHT;
-        (pos.x - PANEL_EDGE_OFFSET).clamp(min_x, max_x)
+        let x = (pos.x - PANEL_EDGE_OFFSET).clamp(min_x, max_x);
+        let y = pos.y + size.height + PANEL_MARGIN_TOP;
+        (x, y)
     } else {
-        work_x + work_width - PANEL_WIDTH - PANEL_MARGIN_RIGHT
+        (
+            work_x + work_width - PANEL_WIDTH - PANEL_MARGIN_RIGHT,
+            work_y + PANEL_MARGIN_TOP,
+        )
     };
-    let y = work_y + PANEL_MARGIN_TOP;
 
     window
         .set_position(Position::Logical(LogicalPosition::new(x, y)))
