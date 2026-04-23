@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Homepage hero polish** — the eight-petal compass watermark shifts inward from `right: -1rem` to `right: 2rem` so it sits more comfortably inside the hero bleed instead of clipping past the viewport edge. The Apple glyph in the Download CTA gets an extra `-1px` of optical centering (`.btn-primary .i:first-child { translateY(-2px) }`) because its leaf-and-stem top makes the visual mass sit lower than the Octocat or arrow icons — scoped so only the primary button's leading icon is affected.
+
 ### Docs
 
 - **README Install section catches up to reality** — the app has been ad-hoc signed (`signingIdentity = "-"`) since v0.1.0-alpha.1, so the `xattr -dr com.apple.quarantine` workaround and the "future releases will ship ad-hoc signed" forward-looking note are both obsolete. Replaced with the right-click → Open flow that matches the current bundle, and the download link is now pointed at `releases/latest` so it auto-tracks the newest build instead of referencing a specific version number that rots every cut.

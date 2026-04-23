@@ -398,7 +398,7 @@
      <g.petal> scales out from the viewBox center on a staggered delay. */
   .compass {
     position: absolute;
-    right: -1rem;
+    right: 2rem;
     top: 3.5rem;
     width: min(32vw, 24rem);
     aspect-ratio: 1 / 1;
@@ -898,6 +898,10 @@
        correction helps the GitHub octocat. */
     transform: translateY(-1px);
   }
+  /* Apple glyph in the Download CTA sits lowest of the three — the stem +
+     leaf at the top shifts the visual mass further down than the Octocat
+     or arrow. Extra nudge so its cap-line meets the button label's. */
+  .btn-primary .i:first-child { transform: translateY(-2px); }
 
   /* Selection */
   ::selection { background: var(--terracotta); color: var(--bg); }
