@@ -4,6 +4,9 @@ dist
 dist-ssr
 *.local
 
+# Homepage verification screenshots (~1MB each, regenerated on demand)
+_shots/
+
 # TypeScript incremental build info
 *.tsbuildinfo
 
@@ -38,5 +41,9 @@ src-tauri/gen/
 # Claude Code — commit shared config/hooks, ignore personal overrides
 .claude/settings.local.json
 
-# Internal/design docs stay local only
-docs/
+# Internal design docs stay local only; the deployed homepage is whitelisted.
+docs/*
+!docs/index.html
+!docs/assets/
+!docs/assets/**
+!docs/.nojekyll
