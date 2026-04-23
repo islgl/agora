@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.3] — 2026-04-23
+
 ### Added
 
 - **Menu bar tray + quick panel** — an `NSStatusItem` tray icon (`Agora` tooltip) opens a 372×430 transparent rounded panel directly under the icon with Quick entry cards (New conversation / Open Agora / Settings), a live Double-Option quick-launch toggle, and Quit. Panel hides on focus loss via `Builder::on_window_event` (catches clicks on our own windows) plus a global `NSEvent` left/right/other-mouse-down monitor (catches clicks in other apps or on the desktop). Tray icon is built from `assets/logo-light.png` via a runtime alpha dilation + halo pass (`dilate_alpha` in `background.rs`) so the silhouette keeps its breathing room at 22pt after macOS template-mode auto-tints it white on dark menu bars.

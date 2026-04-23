@@ -1,10 +1,10 @@
 /** @jsxRuntime classic */
 const { useState, useEffect, useRef } = React;
 
-const VERSION = '0.1.0-alpha.2';
+const VERSION = '0.1.0-alpha.3';
 const GH_URL  = 'https://github.com/islgl/agora';
 const REL_URL = 'https://github.com/islgl/agora/releases';
-const DMG_URL = 'https://github.com/islgl/agora/releases/download/v0.1.0-alpha.2/Agora_0.1.0-alpha.2_aarch64.dmg';
+const DMG_URL = 'https://github.com/islgl/agora/releases/download/v0.1.0-alpha.3/Agora_0.1.0-alpha.3_aarch64.dmg';
 
 // Inline SVG — no library, no emoji.
 const ArrowRight = ({ className = 'btn-arrow' }) => (
