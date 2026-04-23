@@ -10,6 +10,10 @@
 <p align="center">A desktop AI chat client with first-class agent tooling — built with Tauri, React, and Rust.</p>
 
 <p align="center">
+  <a href="https://agora.lglgl.me"><strong>agora.lglgl.me</strong></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/islgl/agora/releases"><img src="https://img.shields.io/github/v/release/islgl/agora?include_prereleases&label=version&color=blue" alt="Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/islgl/agora?color=green" alt="License"></a>
   <a href="https://github.com/islgl/agora/releases"><img src="https://img.shields.io/badge/platform-macOS-000?logo=apple&logoColor=white" alt="Platform"></a>
@@ -36,7 +40,7 @@ Agora pairs a clean chat UI with a real agent runtime: MCP servers, skills, buil
 
 ## Install
 
-Grab the latest `.dmg` from [Releases](https://github.com/islgl/agora/releases) and drag `Agora.app` into `/Applications`.
+Grab the latest `.dmg` from [the homepage](https://agora.lglgl.me) or [GitHub Releases](https://github.com/islgl/agora/releases) and drag `Agora.app` into `/Applications`.
 
 Because the alpha isn't signed with an Apple Developer ID, macOS may refuse to launch it. Run this once after copying:
 

@@ -7,6 +7,11 @@ dist-ssr
 # Homepage verification screenshots (~1MB each, regenerated on demand)
 _shots/
 
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
 # TypeScript incremental build info
 *.tsbuildinfo
 
@@ -47,3 +52,4 @@ docs/*
 !docs/assets/
 !docs/assets/**
 !docs/.nojekyll
+!docs/CNAME
