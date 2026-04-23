@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Agora">
+  <title>Agora</title>
+  <rect width="180" height="180" fill="#f4efe6"/>
+  <g transform="translate(90,90) scale(0.55)">
+    <g fill="#1f1b15">
+      <g id="L">
+        <path d="M 0,-14 C 7,-42 7,-64 0,-84 C -7,-64 -7,-42 0,-14 Z"/>
+      </g>
+      <use href="#L"/>
+      <use href="#L" transform="rotate(90)"/>
+      <use href="#L" transform="rotate(180)"/>
+      <use href="#L" transform="rotate(270)"/>
+      <g id="S">
+        <path d="M 0,-12 C 5,-30 5,-46 0,-58 C -5,-46 -5,-30 0,-12 Z"/>
+      </g>
+      <use href="#S" transform="rotate(45)"/>
+      <use href="#S" transform="rotate(135)"/>
+      <use href="#S" transform="rotate(225)"/>
+      <use href="#S" transform="rotate(315)"/>
+    </g>
+    <circle r="5" fill="#6e2f3a"/>
+  </g>
+</svg>

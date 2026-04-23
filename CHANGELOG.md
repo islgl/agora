@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Brand logo kit at `_design/logo-kit/`** — full Edition-I compass kit ported from the external "nous" brand package: 7 SVG variants (`agora-mark`, `agora-mark-mono`, `agora-mark-inverse`, `agora-favicon`, `agora-lockup`, `agora-og`, `apple-touch-icon`), 19 PNG rasterizations (16→1024 square + inverse + mono + lockup + 1200×630 OG), a complete favicon set (`.ico` + 16/32/48/64 + apple-touch-icon-180 + android-chrome-192/512), an `EMBED.md` with copy-paste HTML/React/favicon/OG snippets, and a 25 KB `agora-brand-guidelines.html` design spec. All filenames, CSS variable tokens (`--agora-ink` / `--agora-wine` / `--agora-paper`), React component names (`AgoraMark`), ARIA labels, and the Greek etymology (`Νοῦς` → `ἀγορά`) have been rewritten from the source kit so nothing still ships as "Nous". Note: the brand-guidelines HTML still references a `../design/styles/tokens.css` stylesheet that isn't vendored here — open it with the tokens.css file sitting where the relative path expects, or inline the tokens if you want it to render standalone.
+
 ### Changed
 
 - **Homepage hero polish** — the eight-petal compass watermark shifts inward from `right: -1rem` to `right: 2rem` so it sits more comfortably inside the hero bleed instead of clipping past the viewport edge. The Apple glyph in the Download CTA gets an extra `-1px` of optical centering (`.btn-primary .i:first-child { translateY(-2px) }`) because its leaf-and-stem top makes the visual mass sit lower than the Octocat or arrow icons — scoped so only the primary button's leading icon is affected.

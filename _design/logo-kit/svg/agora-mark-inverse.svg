@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Agora">
+  <title>Agora</title>
+  <g transform="translate(100,100)">
+    <g fill="#ece3cf">
+      <g id="l">
+        <path d="M 0,-14 C 7,-42 7,-64 0,-84 C -7,-64 -7,-42 0,-14 Z"/>
+      </g>
+      <use href="#l"/>
+      <use href="#l" transform="rotate(90)"/>
+      <use href="#l" transform="rotate(180)"/>
+      <use href="#l" transform="rotate(270)"/>
+      <g id="s">
+        <path d="M 0,-12 C 5,-30 5,-46 0,-58 C -5,-46 -5,-30 0,-12 Z"/>
+      </g>
+      <use href="#s" transform="rotate(45)"/>
+      <use href="#s" transform="rotate(135)"/>
+      <use href="#s" transform="rotate(225)"/>
+      <use href="#s" transform="rotate(315)"/>
+    </g>
+    <circle r="5" fill="#c08b97"/>
+  </g>
+</svg>

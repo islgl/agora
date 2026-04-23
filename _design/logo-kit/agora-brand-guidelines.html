@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en" data-mode="light">
+<head>
+<meta charset="utf-8"/>
+<title>Agora — Brand Mark · A3 Final</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&family=GFS+Didot&family=Cormorant+SC:wght@400;500&display=swap">
+<link rel="stylesheet" href="../design/styles/tokens.css"/>
+<style>
+  body { padding: 72px 48px; }
+  .page { max-width: 1080px; margin: 0 auto; }
+
+  /* editorial header */
+  header.cover {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
+    align-items: end;
+    padding-bottom: 32px; margin-bottom: 64px;
+    border-bottom: 1px solid var(--agora-rule);
+  }
+  .cover .eyebrow { font-family: var(--ff-sc); font-size: 11px;
+    letter-spacing: 0.24em; color: var(--agora-ink-3); text-transform: uppercase; }
+  .cover h1 { font-family: var(--ff-display); font-weight: 500;
+    font-size: 72px; line-height: 1.02; margin: 16px 0 0; color: var(--agora-ink);
+    letter-spacing: -0.005em; }
+  .cover h1 .gr { font-family: var(--ff-greek); font-style: italic;
+    color: var(--agora-terracotta); }
+  .cover aside { font-family: var(--ff-serif); font-size: 17px;
+    line-height: 1.62; color: var(--agora-ink-2); padding-bottom: 8px; }
+
+  /* hero */
+  .hero {
+    background: var(--agora-paper-2);
+    border: 1px solid var(--agora-rule);
+    padding: 96px 48px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 56px;
+  }
+
+  /* section */
+  section { margin-bottom: 64px; }
+  .section-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 1px solid var(--agora-rule-soft);
+    padding-bottom: 10px; margin-bottom: 28px;
+  }
+  .section-head h2 {
+    font-family: var(--ff-display); font-weight: 500; font-style: italic;
+    font-size: 28px; color: var(--agora-ink); margin: 0;
+  }
+  .section-head .num {
+    font-family: var(--ff-sc); font-size: 11px;
+    letter-spacing: 0.22em; color: var(--agora-ink-4); text-transform: uppercase;
+  }
+  section p {
+    font-family: var(--ff-serif); font-size: 16px; line-height: 1.62;
+    color: var(--agora-ink-2); max-width: 64ch; margin: 0 0 16px;
+  }
+  section p .gr { font-family: var(--ff-greek); font-style: italic;
+    color: var(--agora-terracotta); }
+
+  /* variants grid */
+  .variants { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .vcard {
+    border: 1px solid var(--agora-rule);
+    aspect-ratio: 1 / 1;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .vcard.paper { background: var(--agora-paper-2); }
+  .vcard.ink { background: #1a1814; }
+  .vcard.wine { background: #6e2f3a; }
+  .vcard.olive { background: #6e7542; }
+  .vcard.dark { background: #15140f; }
+  .vcard .tag {
+    position: absolute; top: 10px; left: 10px;
+    font-family: var(--ff-sc); font-size: 9px; letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .vcard.paper .tag { color: var(--agora-ink-4); }
+  .vcard.ink .tag, .vcard.wine .tag, .vcard.olive .tag, .vcard.dark .tag { color: rgba(236,227,207,0.5); }
+  .vlabel {
+    text-align: center; margin-top: 10px;
+    font-family: var(--ff-sc); font-size: 10px; letter-spacing: 0.2em;
+    color: var(--agora-ink-3); text-transform: uppercase;
+  }
+  .vlabel .name {
+    display: block; font-family: var(--ff-display); font-style: italic;
+    font-size: 15px; color: var(--agora-ink); text-transform: none;
+    letter-spacing: 0; margin-top: 3px;
+  }
+
+  /* clearance diagram */
+  .clearance {
+    background: var(--agora-paper-2);
+    border: 1px solid var(--agora-rule);
+    padding: 40px;
+    display: flex; gap: 40px; align-items: center; justify-content: center;
+  }
+  .clearance-box {
+    position: relative;
+    padding: 40px;
+    border: 1px dashed var(--agora-aegean);
+  }
+  .clearance-box::before, .clearance-box::after {
+    content: 'x'; position: absolute;
+    font-family: var(--ff-greek); font-style: italic; font-size: 14px;
+    color: var(--agora-aegean);
+  }
+  .clearance-box::before { top: -8px; left: 50%; background: var(--agora-paper-2); padding: 0 6px; }
+  .clearance-box::after { right: -12px; top: 50%; background: var(--agora-paper-2); padding: 4px 0; transform: translateY(-50%); }
+
+  /* scale row */
+  .scales {
+    background: var(--agora-paper-2);
+    border: 1px solid var(--agora-rule);
+    padding: 32px;
+    display: flex; align-items: flex-end; justify-content: space-around;
+    gap: 24px;
+  }
+  .scale-cell { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .scale-cell .px {
+    font-family: var(--ff-sc); font-size: 10px; letter-spacing: 0.18em;
+    color: var(--agora-ink-3); text-transform: uppercase;
+  }
+  .scale-cell .px .num {
+    font-family: var(--ff-display); font-style: italic; font-size: 18px;
+    color: var(--agora-ink); letter-spacing: 0; display: block; margin-bottom: 2px; text-transform: none;
+  }
+
+  /* file list */
+  .files {
+    font-family: var(--ff-mono); font-size: 13px;
+    background: var(--agora-paper-3);
+    border: 1px solid var(--agora-rule);
+    padding: 20px 24px;
+    color: var(--agora-ink-2);
+  }
+  .files .dir { color: var(--agora-aegean); font-weight: 500; }
+  .files .cmt { color: var(--agora-ink-4); font-style: italic; }
+
+  /* context mocks */
+  .context-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .ctx {
+    border: 1px solid var(--agora-rule); padding: 24px;
+    background: var(--agora-paper-2);
+  }
+  .ctx.dark { background: #15140f; border-color: #3a362a; }
+  .ctx.dark * { color: #ece3cf; }
+
+  .ctx-nav { display: flex; justify-content: space-between; align-items: center; }
+  .ctx-nav .brand { display: flex; align-items: center; gap: 12px; }
+  .ctx-nav .wm { font-family: var(--ff-display); font-size: 24px;
+    font-weight: 500; color: var(--agora-ink); }
+  .ctx-nav .gr { font-family: var(--ff-greek); font-style: italic;
+    color: var(--agora-terracotta); font-size: 13px; margin-left: 6px; }
+  .ctx.dark .ctx-nav .wm { color: #ece3cf; }
+  .ctx.dark .ctx-nav .gr { color: #c08b97; }
+  .ctx-nav .links {
+    display: flex; gap: 22px;
+    font-family: var(--ff-serif); font-size: 13px; color: var(--agora-ink-3);
+    font-variant: small-caps; letter-spacing: 0.08em;
+  }
+  .ctx.dark .ctx-nav .links { color: #948b73; }
+
+  .ctx-tab { display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 13px; background: var(--agora-paper);
+    border: 1px solid var(--agora-rule); border-bottom: none;
+    border-radius: 5px 5px 0 0;
+    font-family: var(--ff-serif); font-size: 11px; color: var(--agora-ink-2);
+  }
+
+  /* caption */
+  .cap {
+    margin-top: 10px;
+    font-family: var(--ff-sc); font-size: 10px; letter-spacing: 0.22em;
+    color: var(--agora-ink-3); text-transform: uppercase;
+  }
+
+  /* download note */
+  .deliver {
+    margin-top: 48px;
+    padding: 32px 40px;
+    background: var(--agora-paper-3);
+    border-left: 3px solid var(--agora-wine);
+  }
+  .deliver h3 {
+    font-family: var(--ff-display); font-style: italic; font-size: 22px;
+    margin: 0 0 12px; color: var(--agora-ink);
+  }
+</style>
+</head>
+<body class="paper">
+
+<!-- inline defs: single source of truth for the mark, referenced everywhere below -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="agora-mark">
+      <g transform="translate(100,100)">
+        <g fill="currentColor">
+          <g id="leaf-long">
+            <path d="M 0,-14 C 7,-42 7,-64 0,-84 C -7,-64 -7,-42 0,-14 Z"/>
+          </g>
+          <use href="#leaf-long"/>
+          <use href="#leaf-long" transform="rotate(90)"/>
+          <use href="#leaf-long" transform="rotate(180)"/>
+          <use href="#leaf-long" transform="rotate(270)"/>
+          <g id="leaf-short">
+            <path d="M 0,-12 C 5,-30 5,-46 0,-58 C -5,-46 -5,-30 0,-12 Z"/>
+          </g>
+          <use href="#leaf-short" transform="rotate(45)"/>
+          <use href="#leaf-short" transform="rotate(135)"/>
+          <use href="#leaf-short" transform="rotate(225)"/>
+          <use href="#leaf-short" transform="rotate(315)"/>
+        </g>
+      </g>
+    </g>
+  </defs>
+</svg>
+
+<div class="page">
+
+  <!-- ═══════════ COVER ═══════════ -->
+  <header class="cover">
+    <div>
+      <div class="eyebrow">The Mark · A3 · Final</div>
+      <h1>For <span class="gr">ἀγορά</span></h1>
+    </div>
+    <aside>
+      A compass of eight olive leaves — four cardinal, four diagonal —
+      around a wine-dark point. A sign for the reading mind: <em>radiant,
+      rooted, pointed in every direction at once.</em>
+    </aside>
+  </header>
+
+  <!-- ═══════════ HERO ═══════════ -->
+  <div class="hero">
+    <svg viewBox="0 0 200 200" width="300" height="300" style="color:#1a1814">
+      <use href="#agora-mark"/>
+      <circle cx="100" cy="100" r="5" fill="#6e2f3a"/>
+    </svg>
+  </div>
+
+  <!-- ═══════════ 01 · CONSTRUCTION ═══════════ -->
+  <section>
+    <div class="section-head">
+      <h2>Construction</h2>
+      <span class="num">01</span>
+    </div>
+    <p>
+      Eight leaves rotate around a shared axis. The four long leaves sit on
+      the cardinal axes (N, E, S, W); the four short leaves bisect them at
+      45°. Each leaf is an almond curve drawn from the center out, its
+      inner edge stopping 14 units short of origin — opening a small breath
+      around the wine-dark dot. The dot is <span class="gr">--agora-wine</span>,
+      the one accent reserved for punctuation and the letter's pulse.
+    </p>
+
+    <!-- construction diagram -->
+    <div class="clearance">
+      <svg viewBox="-100 -100 200 200" width="300" height="300">
+        <!-- baseline grid -->
+        <g stroke="#dedacd" stroke-width="0.4" fill="none">
+          <line x1="-100" y1="0" x2="100" y2="0"/>
+          <line x1="0" y1="-100" x2="0" y2="100"/>
+          <line x1="-70.7" y1="-70.7" x2="70.7" y2="70.7"/>
+          <line x1="-70.7" y1="70.7" x2="70.7" y2="-70.7"/>
+          <circle r="84" opacity="0.5"/>
+          <circle r="58" opacity="0.5"/>
+          <circle r="14" opacity="0.5"/>
+        </g>
+        <!-- the mark itself -->
+        <g fill="#1a1814">
+          <g id="lf"><path d="M 0,-14 C 7,-42 7,-64 0,-84 C -7,-64 -7,-42 0,-14 Z"/></g>
+          <use href="#lf"/>
+          <use href="#lf" transform="rotate(90)"/>
+          <use href="#lf" transform="rotate(180)"/>
+          <use href="#lf" transform="rotate(270)"/>
+          <g id="sh"><path d="M 0,-12 C 5,-30 5,-46 0,-58 C -5,-46 -5,-30 0,-12 Z"/></g>
+          <use href="#sh" transform="rotate(45)"/>
+          <use href="#sh" transform="rotate(135)"/>
+          <use href="#sh" transform="rotate(225)"/>
+          <use href="#sh" transform="rotate(315)"/>
+        </g>
+        <circle r="5" fill="#6e2f3a"/>
+        <!-- radius labels -->
+        <text x="2" y="-80" font-family="Cormorant SC" font-size="7" fill="#3d6a7a" letter-spacing="0.1em">R 84</text>
+        <text x="2" y="-54" font-family="Cormorant SC" font-size="7" fill="#3d6a7a" letter-spacing="0.1em">R 58</text>
+        <text x="2" y="-10" font-family="Cormorant SC" font-size="6" fill="#3d6a7a" letter-spacing="0.1em">R 14</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ═══════════ 02 · VARIANTS ═══════════ -->
+  <section>
+    <div class="section-head">
+      <h2>Variants</h2>
+      <span class="num">02</span>
+    </div>
+    <p>
+      The two-color canonical is the default everywhere there's room for it.
+      Mono is for when color would be noise — embossing, small UI, single
+      channel printing. On dark grounds, the dot shifts from
+      <span class="gr">--agora-wine</span> to its lamplit counterpart
+      <span class="gr">--agora-wine</span> dark-mode token (<code style="font-family:var(--ff-mono); font-size:13px;">#c08b97</code>),
+      which is the system's built-in adaptation.
+    </p>
+
+    <div class="variants">
+      <div>
+        <div class="vcard paper"><span class="tag">01</span>
+          <svg viewBox="0 0 200 200" width="60%" style="color:#1a1814">
+            <use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#6e2f3a"/>
+          </svg>
+        </div>
+        <div class="vlabel">Canonical<span class="name">ink + wine</span></div>
+      </div>
+
+      <div>
+        <div class="vcard paper"><span class="tag">02</span>
+          <svg viewBox="0 0 200 200" width="60%" style="color:#1a1814">
+            <use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#1a1814"/>
+          </svg>
+        </div>
+        <div class="vlabel">Mono<span class="name">ink only</span></div>
+      </div>
+
+      <div>
+        <div class="vcard dark"><span class="tag">03</span>
+          <svg viewBox="0 0 200 200" width="60%" style="color:#ece3cf">
+            <use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#c08b97"/>
+          </svg>
+        </div>
+        <div class="vlabel">Inverse<span class="name">on dark</span></div>
+      </div>
+
+      <div>
+        <div class="vcard paper"><span class="tag">04</span>
+          <svg viewBox="0 0 200 200" width="60%" style="color:#6e2f3a">
+            <use href="#agora-mark"/>
+          </svg>
+        </div>
+        <div class="vlabel">Wine<span class="name">accent use</span></div>
+      </div>
+
+      <div>
+        <div class="vcard ink"><span class="tag">05</span>
+          <svg viewBox="0 0 200 200" width="60%" style="color:#fdfcf9">
+            <use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#d07e62"/>
+          </svg>
+        </div>
+        <div class="vlabel">Ink ground<span class="name">app icon</span></div>
+      </div>
+
+      <div>
+        <div class="vcard wine"><span class="tag">06</span>
+          <svg viewBox="0 0 200 200" width="60%" style="color:#fdfcf9">
+            <use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#fdfcf9"/>
+          </svg>
+        </div>
+        <div class="vlabel">Wine ground<span class="name">app icon</span></div>
+      </div>
+
+      <div>
+        <div class="vcard olive"><span class="tag">07</span>
+          <svg viewBox="0 0 200 200" width="60%" style="color:#fdfcf9">
+            <use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#6e2f3a"/>
+          </svg>
+        </div>
+        <div class="vlabel">Olive ground<span class="name">alt accent</span></div>
+      </div>
+
+      <div>
+        <div class="vcard paper" style="background:#ece9e0;"><span class="tag">08</span>
+          <svg viewBox="0 0 200 200" width="60%" style="color:#1a1814">
+            <use href="#agora-mark"/>
+          </svg>
+        </div>
+        <div class="vlabel">Debossed<span class="name">stamping</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 03 · SCALE ═══════════ -->
+  <section>
+    <div class="section-head">
+      <h2>Scale</h2>
+      <span class="num">03</span>
+    </div>
+    <p>
+      At 16 px the wine dot disappears — it has become noise at that
+      resolution, and the favicon SVG omits it. From 24 px upward, the dot
+      returns. Below 12 px, prefer the mono mark or the wordmark.
+    </p>
+
+    <div class="scales">
+      <div class="scale-cell">
+        <svg viewBox="0 0 200 200" width="128" height="128" style="color:#1a1814"><use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#6e2f3a"/></svg>
+        <div class="px"><span class="num">128</span>px</div>
+      </div>
+      <div class="scale-cell">
+        <svg viewBox="0 0 200 200" width="64" height="64" style="color:#1a1814"><use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#6e2f3a"/></svg>
+        <div class="px"><span class="num">64</span>px</div>
+      </div>
+      <div class="scale-cell">
+        <svg viewBox="0 0 200 200" width="48" height="48" style="color:#1a1814"><use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#6e2f3a"/></svg>
+        <div class="px"><span class="num">48</span>px</div>
+      </div>
+      <div class="scale-cell">
+        <svg viewBox="0 0 200 200" width="32" height="32" style="color:#1a1814"><use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#6e2f3a"/></svg>
+        <div class="px"><span class="num">32</span>px</div>
+      </div>
+      <div class="scale-cell">
+        <svg viewBox="0 0 200 200" width="24" height="24" style="color:#1a1814"><use href="#agora-mark"/></svg>
+        <div class="px"><span class="num">24</span>px</div>
+      </div>
+      <div class="scale-cell">
+        <svg viewBox="0 0 200 200" width="16" height="16" style="color:#1a1814"><use href="#agora-mark"/></svg>
+        <div class="px"><span class="num">16</span>px</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 04 · LOCKUP ═══════════ -->
+  <section>
+    <div class="section-head">
+      <h2>Wordmark Lockup</h2>
+      <span class="num">04</span>
+    </div>
+    <p>
+      The mark sits to the left of the wordmark, separated by a single
+      hairline rule at <span class="gr">--agora-rule</span>. The mark's height
+      matches the x-height of the wordmark plus its cap-height — in practice,
+      scale the mark to 48% of the wordmark's type size.
+    </p>
+
+    <div class="clearance" style="justify-content: flex-start; padding: 56px 48px;">
+      <svg viewBox="0 0 200 200" width="64" height="64" style="color:#1a1814">
+        <use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#6e2f3a"/>
+      </svg>
+      <div style="width: 1px; height: 84px; background: #dedacd; margin: 0 24px;"></div>
+      <div>
+        <div style="font-family: var(--ff-display); font-weight: 500; font-size: 68px; line-height: 1; color: var(--agora-ink); letter-spacing: 0.01em;">Agora</div>
+        <div style="margin-top: 6px;">
+          <span style="font-family: var(--ff-greek); font-style: italic; font-size: 20px; color: #6e2f3a;">ἀγορά</span>
+          <span style="font-family: var(--ff-sc); font-size: 11px; letter-spacing: 0.22em; color: var(--agora-ink-3); margin-left: 10px;">· THE READING MIND</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 05 · IN CONTEXT ═══════════ -->
+  <section>
+    <div class="section-head">
+      <h2>In Context</h2>
+      <span class="num">05</span>
+    </div>
+
+    <div class="context-grid">
+      <div class="ctx">
+        <div class="ctx-nav">
+          <div class="brand">
+            <svg viewBox="0 0 200 200" width="32" height="32" style="color:#1a1814">
+              <use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#6e2f3a"/>
+            </svg>
+            <div class="wm">Agora<span class="gr">ἀγορά</span></div>
+          </div>
+          <div class="links"><span>Reader</span><span>Essays</span><span>Type</span></div>
+        </div>
+      </div>
+      <div class="ctx dark">
+        <div class="ctx-nav">
+          <div class="brand">
+            <svg viewBox="0 0 200 200" width="32" height="32" style="color:#ece3cf">
+              <use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#c08b97"/>
+            </svg>
+            <div class="wm">Agora<span class="gr">ἀγορά</span></div>
+          </div>
+          <div class="links"><span>Reader</span><span>Essays</span><span>Type</span></div>
+        </div>
+      </div>
+
+      <div class="ctx">
+        <div class="cap" style="margin-top:0; margin-bottom: 14px;">Browser tab</div>
+        <div class="ctx-tab">
+          <svg viewBox="0 0 200 200" width="13" height="13" style="color:#1a1814"><use href="#agora-mark"/></svg>
+          ἀγορά — The Quiet Garden
+        </div>
+      </div>
+
+      <div class="ctx">
+        <div class="cap" style="margin-top:0; margin-bottom: 14px;">App icons</div>
+        <div style="display:flex; gap:14px;">
+          <div style="width:56px; height:56px; border-radius:12px; background:#fdfcf9; border:1px solid var(--agora-rule); display:flex; align-items:center; justify-content:center;">
+            <svg viewBox="0 0 200 200" width="36" height="36" style="color:#1a1814"><use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#6e2f3a"/></svg>
+          </div>
+          <div style="width:56px; height:56px; border-radius:12px; background:#1a1814; display:flex; align-items:center; justify-content:center;">
+            <svg viewBox="0 0 200 200" width="36" height="36" style="color:#fdfcf9"><use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#d07e62"/></svg>
+          </div>
+          <div style="width:56px; height:56px; border-radius:12px; background:#6e2f3a; display:flex; align-items:center; justify-content:center;">
+            <svg viewBox="0 0 200 200" width="36" height="36" style="color:#fdfcf9"><use href="#agora-mark"/></svg>
+          </div>
+          <div style="width:56px; height:56px; border-radius:12px; background:#6e7542; display:flex; align-items:center; justify-content:center;">
+            <svg viewBox="0 0 200 200" width="36" height="36" style="color:#fdfcf9"><use href="#agora-mark"/><circle cx="100" cy="100" r="5" fill="#6e2f3a"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 06 · PALETTE ═══════════ -->
+  <section>
+    <div class="section-head">
+      <h2>Palette</h2>
+      <span class="num">06</span>
+    </div>
+    <p>
+      The mark uses exactly two tokens. Primary ink is
+      <span class="gr">--agora-ink</span> (<code style="font-family:var(--ff-mono); font-size:13px;">#1a1814</code>);
+      the dot is <span class="gr">--agora-wine</span> (<code style="font-family:var(--ff-mono); font-size:13px;">#6e2f3a</code>).
+      In dark mode these become <code style="font-family:var(--ff-mono); font-size:13px;">#ece3cf</code> and
+      <code style="font-family:var(--ff-mono); font-size:13px;">#c08b97</code> respectively.
+    </p>
+    <div style="display: flex; gap: 16px; margin-top: 8px;">
+      <div style="flex: 1; border: 1px solid var(--agora-rule);">
+        <div style="background:#1a1814; height: 80px;"></div>
+        <div style="padding: 10px 14px; font-family: var(--ff-mono); font-size: 12px; color: var(--agora-ink-2);">
+          <div style="font-family:var(--ff-sc); font-size:10px; letter-spacing: 0.22em; color:var(--agora-ink-3); text-transform: uppercase;">ink</div>
+          #1a1814
+        </div>
+      </div>
+      <div style="flex: 1; border: 1px solid var(--agora-rule);">
+        <div style="background:#6e2f3a; height: 80px;"></div>
+        <div style="padding: 10px 14px; font-family: var(--ff-mono); font-size: 12px; color: var(--agora-ink-2);">
+          <div style="font-family:var(--ff-sc); font-size:10px; letter-spacing: 0.22em; color:var(--agora-ink-3); text-transform: uppercase;">wine</div>
+          #6e2f3a
+        </div>
+      </div>
+      <div style="flex: 1; border: 1px solid var(--agora-rule);">
+        <div style="background:#ece3cf; height: 80px;"></div>
+        <div style="padding: 10px 14px; font-family: var(--ff-mono); font-size: 12px; color: var(--agora-ink-2);">
+          <div style="font-family:var(--ff-sc); font-size:10px; letter-spacing: 0.22em; color:var(--agora-ink-3); text-transform: uppercase;">ink · dark</div>
+          #ece3cf
+        </div>
+      </div>
+      <div style="flex: 1; border: 1px solid var(--agora-rule);">
+        <div style="background:#c08b97; height: 80px;"></div>
+        <div style="padding: 10px 14px; font-family: var(--ff-mono); font-size: 12px; color: var(--agora-ink-2);">
+          <div style="font-family:var(--ff-sc); font-size:10px; letter-spacing: 0.22em; color:var(--agora-ink-3); text-transform: uppercase;">wine · dark</div>
+          #c08b97
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ DELIVERABLES ═══════════ -->
+  <section>
+    <div class="section-head">
+      <h2>Deliverables</h2>
+      <span class="num">07</span>
+    </div>
+    <div class="files">
+<span class="dir">agora-brand/</span>
+├── <span class="dir">svg/</span>
+│   ├── agora-mark.svg              <span class="cmt"># canonical, two-color</span>
+│   ├── agora-mark-mono.svg         <span class="cmt"># single color via currentColor</span>
+│   ├── agora-mark-inverse.svg      <span class="cmt"># for dark grounds</span>
+│   ├── agora-favicon.svg           <span class="cmt"># 32px-optimized, no dot</span>
+│   └── agora-lockup.svg            <span class="cmt"># mark + wordmark + Greek</span>
+│
+├── <span class="dir">png/</span>
+│   ├── agora-mark-{16,24,32,48,64,128,256,512,1024}.png
+│   ├── agora-mark-{256,512,1024}-transparent.png
+│   ├── agora-mark-inverse-{256,512,1024}.png
+│   ├── agora-mark-mono-512.png
+│   └── agora-lockup-1200.png
+│
+└── <span class="dir">favicon/</span>
+    └── favicon-{16,32,48}.png
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

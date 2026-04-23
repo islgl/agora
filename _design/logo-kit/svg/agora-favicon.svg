@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Agora">
+  <title>Agora</title>
+  <g transform="translate(16,16)" fill="#1f1b15">
+    <g id="L">
+      <path d="M 0,-2 C 2.2,-6 2.2,-11 0,-14 C -2.2,-11 -2.2,-6 0,-2 Z"/>
+    </g>
+    <use href="#L"/>
+    <use href="#L" transform="rotate(90)"/>
+    <use href="#L" transform="rotate(180)"/>
+    <use href="#L" transform="rotate(270)"/>
+    <g id="S">
+      <path d="M 0,-2 C 1.7,-5 1.7,-8.5 0,-10 C -1.7,-8.5 -1.7,-5 0,-2 Z"/>
+    </g>
+    <use href="#S" transform="rotate(45)"/>
+    <use href="#S" transform="rotate(135)"/>
+    <use href="#S" transform="rotate(225)"/>
+    <use href="#S" transform="rotate(315)"/>
+  </g>
+</svg>

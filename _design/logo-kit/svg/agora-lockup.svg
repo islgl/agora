@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" role="img" aria-label="Agora — ἀγορά">
+  <title>Agora</title>
+  <!-- mark, vertically centered at (60, 60) -->
+  <g transform="translate(60,60) scale(0.48)">
+    <g fill="#1f1b15">
+      <g id="l">
+        <path d="M 0,-14 C 7,-42 7,-64 0,-84 C -7,-64 -7,-42 0,-14 Z"/>
+      </g>
+      <use href="#l"/>
+      <use href="#l" transform="rotate(90)"/>
+      <use href="#l" transform="rotate(180)"/>
+      <use href="#l" transform="rotate(270)"/>
+      <g id="s">
+        <path d="M 0,-12 C 5,-30 5,-46 0,-58 C -5,-46 -5,-30 0,-12 Z"/>
+      </g>
+      <use href="#s" transform="rotate(45)"/>
+      <use href="#s" transform="rotate(135)"/>
+      <use href="#s" transform="rotate(225)"/>
+      <use href="#s" transform="rotate(315)"/>
+    </g>
+    <circle r="5" fill="#6e2f3a"/>
+  </g>
+
+  <!-- hairline rule separator -->
+  <line x1="120" y1="22" x2="120" y2="98" stroke="#c9bfa8" stroke-width="0.8"/>
+
+  <!-- wordmark -->
+  <text x="140" y="72"
+        font-family="'Cormorant Garamond','EB Garamond',Georgia,serif"
+        font-size="56" font-weight="500" fill="#1f1b15"
+        letter-spacing="0.01em">Agora</text>
+
+  <!-- Greek form below, italic, wine -->
+  <text x="142" y="96"
+        font-family="'GFS Didot','EB Garamond',serif"
+        font-size="18" font-style="italic" fill="#6e2f3a">ἀγορά</text>
+
+  <!-- small-caps tagline to the right of the Greek -->
+  <text x="192" y="95"
+        font-family="'Cormorant SC','Cormorant Garamond',serif"
+        font-size="10" fill="#6b6254"
+        letter-spacing="0.22em">· THE READING MIND</text>
+</svg>
