@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Docs
+
+- **README Install section catches up to reality** — the app has been ad-hoc signed (`signingIdentity = "-"`) since v0.1.0-alpha.1, so the `xattr -dr com.apple.quarantine` workaround and the "future releases will ship ad-hoc signed" forward-looking note are both obsolete. Replaced with the right-click → Open flow that matches the current bundle, and the download link is now pointed at `releases/latest` so it auto-tracks the newest build instead of referencing a specific version number that rots every cut.
+
 ## [0.1.0-alpha.3] — 2026-04-23
 
 ### Added

@@ -25,7 +25,7 @@
 
 Agora pairs a clean chat UI with a real agent runtime: MCP servers, skills, built-in FS/Bash/Grep tools, approval prompts, todos, hooks, and conversation branching — all stored locally under `~/.agora/`.
 
-> ⚠️ **Alpha.** Only a macOS build is published today. Binaries are unsigned — Gatekeeper will prompt on first launch.
+> ⚠️ **Alpha.** Only a macOS build is published today (Apple Silicon). Binaries are ad-hoc signed — macOS asks once on first launch, right-click → Open to confirm.
 
 ## Highlights
 
@@ -40,17 +40,14 @@ Agora pairs a clean chat UI with a real agent runtime: MCP servers, skills, buil
 
 ## Install
 
-Grab the latest `.dmg` from [the homepage](https://agora.lglgl.me) or [GitHub Releases](https://github.com/islgl/agora/releases) and drag `Agora.app` into `/Applications`.
+Grab the [latest `.dmg`](https://github.com/islgl/agora/releases/latest) (Apple Silicon, ~16 MB) from [the homepage](https://agora.lglgl.me) or the [releases page](https://github.com/islgl/agora/releases) and drag `Agora.app` into `/Applications`.
 
-Because the alpha isn't signed with an Apple Developer ID, macOS may refuse to launch it. Run this once after copying:
+The bundle is **ad-hoc signed** (not yet Developer-ID signed), so macOS will ask once on first launch:
 
-```bash
-xattr -dr com.apple.quarantine /Applications/Agora.app
-```
+1. Right-click `Agora.app` in `/Applications` → **Open**
+2. Confirm the Gatekeeper prompt
 
-Then double-click normally. The quarantine bit is what macOS adds to everything downloaded from the internet; removing it tells Gatekeeper to trust you on this one.
-
-> Future releases (v0.1.1-alpha+) ship ad-hoc signed, so you'll only need `right-click → Open` once instead of the `xattr` command.
+From then on it launches like any other app. Intel Macs aren't packaged yet — build from source, or [open an issue](https://github.com/islgl/agora/issues) to nudge us.
 
 ## Development
 
