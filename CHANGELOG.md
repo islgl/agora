@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type-ahead message queue** — the composer no longer locks during a running stream. Submissions while a response is in flight land on a per-conversation pending queue rendered as chips above the composer. Drain is manual (➤ per chip), so an assistant that ends with an inline clarification question ("do you mean A or B?") can't silently eat a queued follow-up. `/plan`, `/execute`, etc. re-parse at send time, not at queue time. Stream cancel leaves the queue intact; deleting the conversation clears it.
 - **Push-to-main CHANGELOG guard** — `.claude/hooks/require-changelog-on-push.sh` registered as a Claude Code PreToolUse hook via `.claude/settings.json`. Blocks `git push … main` when none of the pending commits touched `CHANGELOG.md`, keeping release notes in lockstep with the tree.
 - **Close-to-tray preference** — new **Minimize to tray on close** toggle in Settings → General (defaults on) intercepts the main window's close event, hides to the menu bar, and keeps the app resident. Turning it off restores a clean quit on close. The tray icon and Double-Option launcher remain the supported reopen paths.
+- **Homepage at `/docs`** — editorial Claude Parchment landing page for GitHub Pages. Single self-contained `docs/index.html` (React 18 UMD + offline-compiled JSX, no Babel Standalone) with Hero "Stay in One.", five-layer editorial breakdown, "Everything lives on disk" filetree, three-step install, and dark-mode toggle with pre-mount theme resolution to avoid FOUC. Download CTAs link directly to the v0.1.0-alpha.2 Apple Silicon `.dmg`. Authored source, Playwright verify script, and brand assets are kept under `_design/homepage/` for iteration.
 
 ### Changed
 
@@ -43,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Move logo assets to repo-root `assets/`** — `./assets/logo-{light,dark}.png` are now the canonical paths referenced by the README header.
-- **`docs/` is now local-only** — internal design notes, roadmap, and TODO live outside of git (`docs/` is in `.gitignore`). The README no longer advertises a Documentation section.
+- **`docs/` is mostly local-only** — internal design notes, roadmap, and TODO still live outside of git; `.gitignore` now whitelists the deployed homepage (`docs/index.html`, `docs/assets/`, `docs/.nojekyll`) while keeping everything else private. The README no longer advertises a Documentation section.
 - **Auto conversation title options** in Settings → General collapse into a 3-column segmented row (was a vertical stack of wide cards). Full hints moved to the native hover tooltip — saves ~3 lines of vertical space.
 - **API key input never shows plaintext** — `MaskedKeyInput` now uses `type="password"` when focused, so the value is dot-masked live as the user types/pastes instead of revealing the raw string. Blurred state is unchanged (fixed 15-dot preview).
 - **Menubar panel anchors to the tray icon** — the quick panel's `y` now rides off the tray rect (`pos.y + size.height + 2px`) instead of the work-area top, so it sits directly under the icon at the top edge of the menu bar. Falls back to `work_area + 2px` when the tray rect isn't reported yet.
